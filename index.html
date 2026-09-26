@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prompter Prep</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<style>
+:root{
+  --bench:#E4E6E9; --panel:#FFFFFF; --ink:#1B1C1F; --muted:#5E626A; --rule:#C8CBD1;
+  --overlay:#666666; --glass:#000000; --glass-text:#FFFFFF; --cue:#FF1A0D;
+  --ui:"Instrument Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --prompt:Helvetica, "Helvetica Neue", Arial, sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){ --bench:#1D1F23; --panel:#2A2D32; --ink:#ECEDEF; --muted:#A3A7AE; --rule:#43474E; }
+}
+:root[data-theme="dark"]{ --bench:#1D1F23; --panel:#2A2D32; --ink:#ECEDEF; --muted:#A3A7AE; --rule:#43474E; }
+*,*::before,*::after{box-sizing:inherit}
+html,body{margin:0}
+body{background:var(--bench);color:var(--ink);font:15px/1.5 var(--ui);min-height:100vh}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--cue);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:minmax(300px,420px) 1fr;min-height:100vh}
+.side{padding:28px 28px 40px;display:flex;flex-direction:column;gap:24px;border-right:1px solid var(--rule)}
+h1{font-size:22px;font-weight:600;margin:0;letter-spacing:-.01em}
+.lede{color:var(--muted);margin:4px 0 0;font-size:14px}
+
+.drop{border:1.5px dashed var(--rule);border-radius:10px;padding:22px 18px;text-align:center;background:var(--panel);cursor:pointer;transition:border-color .15s,background .15s}
+.drop:hover{border-color:var(--muted)}
+.drop.over{border-color:var(--cue);background:color-mix(in srgb,var(--cue) 6%,var(--panel))}
+.drop strong{display:block;font-weight:600}
+.drop span{color:var(--muted);font-size:13px}
+.loaded{font-size:13px;color:var(--muted);margin-top:8px;min-height:1.2em}
+.loaded b{color:var(--ink);font-weight:500}
+
+textarea.src{width:100%;min-height:150px;resize:vertical;border:1px solid var(--rule);border-radius:8px;background:var(--panel);padding:10px 12px;font-size:14px;line-height:1.45}
+label.head{font-weight:600;font-size:14px;display:block;margin-bottom:6px}
+
+fieldset{border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+legend{font-weight:600;font-size:14px;margin-bottom:8px;padding:0}
+.opt{display:flex;gap:10px;align-items:flex-start;font-size:14px;cursor:pointer}
+.opt input{margin-top:3px;accent-color:var(--cue)}
+.opt small{display:block;color:var(--muted);font-size:12.5px}
+.range{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;font-size:14px;padding-left:24px}
+.range input{grid-column:1/-1;accent-color:var(--cue);width:100%}
+.range output{font-variant-numeric:tabular-nums;font-weight:500}
+.link{background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:12.5px;justify-self:start}
+
+.stage{display:flex;flex-direction:column;min-width:0}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:16px 24px;border-bottom:1px solid var(--rule)}
+.stats{color:var(--muted);font-size:13px;margin-right:auto;font-variant-numeric:tabular-nums}
+.btn{border:1px solid var(--rule);background:var(--panel);border-radius:7px;padding:8px 14px;cursor:pointer;font-weight:500;font-size:14px}
+.btn:hover:not(:disabled){border-color:var(--muted)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.primary{background:var(--ink);color:var(--bench);border-color:var(--ink)}
+
+.glass{position:relative;flex:1;background:var(--glass);overflow:hidden;min-height:60vh}
+.glass::before{content:"";position:absolute;left:18px;top:50%;width:0;height:0;transform:translateY(-50%);
+  border-top:16px solid transparent;border-bottom:16px solid transparent;border-left:26px solid var(--cue);pointer-events:none;z-index:2}
+.scroll{position:absolute;inset:0;overflow:auto;padding:0 24px}
+textarea.out{display:block;margin:0 auto;background:transparent;border:0;resize:none;color:var(--glass-text);
+  font-family:var(--prompt);font-size:var(--pfs,34px);line-height:1.2;white-space:pre;overflow:hidden;
+  padding:40vh 0 50vh;min-height:100%}
+textarea.out::placeholder{color:#8a8a8a}
+textarea.out:focus-visible{outline:none}
+.edge{position:absolute;top:0;bottom:0;border-right:1px dashed rgba(255,255,255,.18);pointer-events:none}
+.size{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.size input{width:90px;accent-color:var(--cue)}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bench);
+  padding:9px 16px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.err{color:#c0271d;font-size:13px}
+
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  .side{border-right:0;border-bottom:1px solid var(--rule)}
+  .glass{min-height:70vh}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div>
+      <h1>Prompter Prep</h1>
+      <p class="lede">Drop a script, get it back broken into readable lines. <span style="opacity:.7">Version 10</span></p>
+    </div>
+
+    <div>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose a script file">
+        <strong>Drop a .tp3 or a script</strong>
+        <span>.tp3, .rtf, .txt, .md or .docx</span>
+      </div>
+      <input type="file" id="file" accept=".tp3,.rtf,.txt,.md,.docx,.json,.png" multiple hidden>
+      <div class="loaded" id="loaded"></div>
+    </div>
+
+    <div>
+      <label class="head" for="src">Or paste text</label>
+      <textarea class="src" id="src" placeholder="Paste the client's script here"></textarea>
+    </div>
+
+    <fieldset>
+      <legend>Formatting</legend>
+      <label class="opt"><input type="checkbox" id="optBreaks" checked>
+        <span>Smart line breaks<small>Breaks long sentences at commas, dashes and phrase starts instead of letting them wrap mid-phrase</small></span></label>
+      <div class="range" id="rangeRow">
+        <span>Line length</span><output id="lenOut">32</output>
+        <input type="range" id="optLen" min="12" max="60" value="32" aria-label="Line length in characters">
+        <button type="button" class="link" id="autoLen" hidden>Match document</button>
+      </div>
+      <label class="opt"><input type="checkbox" id="optLists" checked>
+        <span>One list item per line<small>Bulleted and numbered items, including bullets run together inline</small></span></label>
+      <label class="opt"><input type="checkbox" id="optBullets">
+        <span>Remove bullet symbols<small>Square bullets and boxes are always removed</small></span></label>
+      <label class="opt"><input type="checkbox" id="optCues">
+        <span>Put [cues] on their own line</span></label>
+    </fieldset>
+  </aside>
+
+  <main class="stage">
+    <div class="bar">
+      <span class="stats" id="stats">No script yet</span>
+      <label class="size">Preview size <input type="range" id="pfs" min="20" max="64" value="34"></label>
+      <button class="btn" id="copy" disabled>Copy text</button>
+      <button class="btn" id="dlRtf" disabled>Download .rtf</button>
+      <button class="btn primary" id="dlPkg" hidden>Download .tp3</button>
+    </div>
+    <div class="glass">
+      <div class="scroll" id="scroll">
+        <textarea class="out" id="out" spellcheck="false" wrap="off" aria-label="Formatted script, editable"
+          placeholder="Formatted script appears here. You can edit it before downloading."></textarea>
+      </div>
+      <div class="edge" id="edge"></div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ============================================================
+   Text metrics — Helvetica advance widths (per 1000 em)
+   Deterministic, so line breaks match the prompter's font
+   even on machines without Helvetica installed.
+   ============================================================ */
+const HW = {" ":278,"!":278,'"':355,"#":556,"$":556,"%":889,"&":667,"'":191,"(":333,")":333,"*":389,"+":584,",":278,"-":333,".":278,"/":278,
+":":278,";":278,"<":584,"=":584,">":584,"?":556,"@":1015,"[":278,"\\":278,"]":278,"^":469,"_":556,"`":333,"{":334,"|":260,"}":334,"~":584,
+A:667,B:667,C:722,D:722,E:667,F:611,G:778,H:722,I:278,J:500,K:667,L:556,M:833,N:722,O:778,P:667,Q:778,R:722,S:667,T:611,U:722,V:667,W:944,X:667,Y:667,Z:611,
+a:556,b:556,c:500,d:556,e:556,f:278,g:556,h:556,i:222,j:222,k:500,l:222,m:833,n:556,o:556,p:556,q:556,r:333,s:500,t:278,u:556,v:500,w:722,x:500,y:500,z:500,
+"—":1000,"–":556,"‘":222,"’":222,"“":333,"”":333,"…":1000,"•":350};
+for (let d=0; d<10; d++) HW[d]=556;
+const textWidth = s => { let w=0; for (const c of s) w += HW[c] ?? 556; return w; };
+const SAMPLE = "Today I'm sitting with the co-founders of the company, and we'll talk about how the ways we interact could change.";
+const AVG = textWidth(SAMPLE) / SAMPLE.length;   // one "average character"
+
+/* ============================================================
+   RTF reading and writing
+   ============================================================ */
+const CP1252 = {0x80:0x20AC,0x82:0x201A,0x83:0x0192,0x84:0x201E,0x85:0x2026,0x86:0x2020,0x87:0x2021,0x88:0x02C6,0x89:0x2030,0x8A:0x0160,0x8B:0x2039,0x8C:0x0152,
+0x8E:0x017D,0x91:0x2018,0x92:0x2019,0x93:0x201C,0x94:0x201D,0x95:0x2022,0x96:0x2013,0x97:0x2014,0x98:0x02DC,0x99:0x2122,0x9A:0x0161,0x9B:0x203A,0x9C:0x0153,0x9E:0x017E,0x9F:0x0178};
+const REV1252 = Object.fromEntries(Object.entries(CP1252).map(([b,u]) => [u, +b]));
+const SKIP = new Set(["fonttbl","colortbl","expandedcolortbl","stylesheet","info","pict","shp","shpinst","shprslt","sp","sn","sv","background","listtable",
+"listoverridetable","header","footer","headerl","headerr","footerl","footerr","generator","themedata","datastore","latentstyles","xmlnstbl","rsidtbl",
+"mmathPr","fldinst","object","nonshppict","filetbl","revtbl","pgdsctbl","colorschememapping","ftnsep","ftnsepc","aftnsep"]);
+
+function parseRTF(raw){
+  let out = "", i = 0, depth = 0, headerEnd = -1, firstDepth = 0, lastFs = null, uc = 1, skipChars = 0;
+  const stack = []; let skip = false, pendingStar = false;
+  let listBuf = null, listDepth = -1, listAt = 0, groupAt = 0;
+  const emit = (s, at) => {
+    if (skip) return;
+    if (skipChars > 0) { skipChars--; return; }
+    if (listBuf !== null) { listBuf += s; return; }
+    if (headerEnd < 0 && s.trim() !== "") { headerEnd = at; firstDepth = depth; }
+    out += s;
+  };
+  while (i < raw.length) {
+    const c = raw[i], at = i;
+    if (c === "{") { stack.push({skip, uc}); depth++; groupAt = i; i++; continue; }
+    if (c === "}") {
+      const s = stack.pop() || {skip:false, uc:1}; skip = s.skip; uc = s.uc;
+      const closingList = listBuf !== null && depth === listDepth;
+      depth--; i++;
+      if (closingList) {                     // list marker: keep numbers and real bullets, flag the rest as broken
+        const m = listBuf.trim(); listBuf = null;
+        const num = m.match(/^\(?(\d{1,3}|[a-zA-Z]|[ivxlc]+)[.)]/);
+        emit(num ? num[0] + " " : /^[•●◦○\-–]$/.test(m) ? m + " " : "\u0001 ", listAt);
+      }
+      continue;
+    }
+    if (c === "\r" || c === "\n") { i++; continue; }
+    if (c !== "\\") { emit(c, at); i++; continue; }
+    const n = raw[i+1];
+    if (n === "\\" || n === "{" || n === "}") { emit(n, at); i += 2; continue; }
+    if (n === "\n" || n === "\r") { emit("\n", at); i += 2; if (n === "\r" && raw[i] === "\n") i++; continue; }
+    if (n === "'") { const b = parseInt(raw.substr(i+2, 2), 16); emit(String.fromCharCode(CP1252[b] || b), at); i += 4; continue; }
+    if (n === "*") { pendingStar = true; i += 2; continue; }
+    if (n === "~") { emit(" ", at); i += 2; continue; }
+    if (n === "-") { i += 2; continue; }
+    if (n === "_") { emit("-", at); i += 2; continue; }
+    const m = /^\\([a-zA-Z]+)(-?\d+)? ?/.exec(raw.slice(i, i + 40));
+    if (!m) { i += 2; continue; }
+    i += m[0].length;
+    const word = m[1], arg = m[2] !== undefined ? +m[2] : null;
+    if (pendingStar) { pendingStar = false; skip = true; continue; }
+    if (SKIP.has(word)) { skip = true; continue; }
+    if ((word === "listtext" || word === "pntext") && !skip) { listBuf = ""; listDepth = depth; listAt = groupAt; continue; }
+    switch (word) {
+      case "par": case "line": case "sect": case "page": emit("\n", at); break;
+      case "tab": emit("\t", at); break;
+      case "emdash": emit("—", at); break;  case "endash": emit("–", at); break;
+      case "lquote": emit("‘", at); break;  case "rquote": emit("’", at); break;
+      case "ldblquote": emit("“", at); break; case "rdblquote": emit("”", at); break;
+      case "bullet": emit("•", at); break;
+      case "uc": uc = arg ?? 1; break;
+      case "u": { let code = arg < 0 ? arg + 65536 : arg; emit(String.fromCharCode(code), at); skipChars = uc; break; }
+      case "fs": if (headerEnd < 0 && !skip) lastFs = arg; break;
+    }
+  }
+  const header = (headerEnd > 0 && firstDepth === 1) ? raw.slice(0, headerEnd) : null;
+  return { text: out, header, fontSize: lastFs ? lastFs / 2 : null };
+}
+
+const DEFAULT_HEADER =
+"{\\rtf1\\ansi\\ansicpg1252\\cocoartf2907\n\\cocoatextscaling0\\cocoaplatform0{\\fonttbl\\f0\\fswiss\\fcharset0 Helvetica;}\n" +
+"{\\colortbl;\\red255\\green255\\blue255;\\red255\\green255\\blue255;}\n{\\*\\expandedcolortbl;;\\cspthree\\c100000\\c100000\\c100000;}\n" +
+"\\pard\\tx560\\tx1120\\tx1680\\tx2240\\tx2800\\tx3360\\tx3920\\tx4480\\tx5040\\tx5600\\tx6160\\tx6720\\sl288\\slmult1\\pardirnatural\\partightenfactor0\n\n\\f0\\fs192 \\cf2 ";
+
+function toRTF(text, header){
+  let body = "";
+  for (const ch of text) {
+    const cp = ch.codePointAt(0);
+    if (ch === "\\") body += "\\\\";
+    else if (ch === "{") body += "\\{";
+    else if (ch === "}") body += "\\}";
+    else if (ch === "\n") body += "\\\n";
+    else if (ch === "\t") body += "\\tab ";
+    else if (cp < 128) body += ch;
+    else if (REV1252[cp] !== undefined) body += "\\'" + REV1252[cp].toString(16);
+    else if (cp < 256) body += "\\'" + cp.toString(16).padStart(2, "0");
+    else for (let k = 0; k < ch.length; k++) {
+      let u = ch.charCodeAt(k); if (u > 32767) u -= 65536;
+      body += "\\uc0\\u" + u + " ";
+    }
+  }
+  return (header || DEFAULT_HEADER) + body + "}";
+}
+
+/* ============================================================
+   Formatter
+   ============================================================ */
+const BULLET_RE = /^\s*([•●◦‣·○➢➤►\-–—*]|\(?\d{1,2}[.)]|\(?[a-zA-Z][.)])\s+/;
+const ABBR = new Set(["mr.","mrs.","ms.","dr.","prof.","sr.","jr.","st.","vs.","mt.","e.g.","i.e.","no.","fig.","approx.","dept.","gen.","gov.","sen.","rep.","capt.","lt.","col.","sgt."]);
+const CONJ = new Set(["and","but","or","nor","so","yet","because","while","although","though","which","who","whom","whose","where","when","that","if","unless","until","since","whether","then","as","rather","instead"]);
+const PREP = new Set(["to","with","for","from","in","on","at","by","about","across","between","through","into","onto","including","like","without","after","before","over","under","during","against","toward","towards","among","within","beyond","behind","around","via","of"]);
+const STICKY = new Set(["a","an","the","to","of","and","or","but","nor","in","on","at","for","with","by","from","my","your","our","their","his","her","its","this","these","those","as","into","than","very","more","most","not","no","i","we","you","they","it's","i'm","we're","you're","they're","it"]);
+const bare = w => w.toLowerCase().replace(/^[“"‘'(\[]+|[”"’'),.;:!?\]]+$/g, "");
+
+// Words that almost always open a new sentence — used to settle "U.S. We..." and "Gen Z. The..."
+const STARTERS = new Set(["we","i","it","its","it's","the","this","that","these","those","our","they","he","she","you","your",
+  "and","but","so","in","at","for","as","today","now","there","here","what","how","why","when","a","an","my","let's","if","with",
+  "after","before","over","next","finally","first","second","third","also","plus","then","thank","thanks","please"]);
+
+function isSentenceEnd(w, next){
+  if (!next) return false;
+  if (!/[.!?…]["'”’)\]]*$/.test(w)) return false;
+  const core = w.replace(/["'”’)\]]+$/, "").replace(/^[“"‘'(\[]+/, "");
+  const lw = core.toLowerCase();
+  const nextBare = next.replace(/^["'“‘(\[]+/, "");
+  const starter = STARTERS.has(bare(next));
+  if (/(…|\.\.)$/.test(core)) return false;                    // "…" / "..." → new line, not a blank line
+  if (/^[a-z]/.test(nextBare)) {                               // "comps. women's..." — still a full stop
+    if (/…$|\.\.$/.test(core)) return false;                    // "wait… what"
+    if (ABBR.has(lw) || lw === "etc.") return false;
+    if (/^([a-z]\.)+$/i.test(lw)) return false;                  // e.g. a.m. U.S. initials
+    return true;
+  }
+  if (ABBR.has(lw)) return false;
+  if (/^[A-Z]\.$/.test(core)) return starter;                   // "Molly Q. Ford" vs "Gen Z. We"
+  if (/^([A-Za-z]\.){2,}$/.test(lw) && !/^(a\.m\.|p\.m\.)$/.test(lw)) return starter; // "U.S. Army" vs "U.S. We"
+  return true;
+}
+
+// Only matched, short (…) and […] groups hold back a split — a stray "(" can't swallow the rest of the script.
+function protectedRanges(words){
+  const inside = new Array(words.length).fill(false), open = [];
+  words.forEach((w, k) => {
+    for (const c of w) {
+      if (c === "(" || c === "[") open.push(k);
+      else if ((c === ")" || c === "]") && open.length) {
+        const s = open.pop();
+        if (k - s <= 30) for (let x = s; x < k; x++) inside[x] = true;
+      }
+    }
+  });
+  return inside;
+}
+
+function splitSentences(text){
+  const words = text.split(/\s+/).filter(Boolean), out = []; let cur = [];
+  const inside = protectedRanges(words);
+  words.forEach((w, k) => {
+    cur.push(w);
+    if (!inside[k] && isSentenceEnd(w, words[k+1])) { out.push(cur.join(" ")); cur = []; }
+  });
+  if (cur.length) out.push(cur.join(" "));
+  return out;
+}
+
+function breakPenalty(words, k, inside){
+  const w = words[k], nx = words[k+1], bw = bare(w), bn = bare(nx);
+  if (inside[k]) return 90;
+  if (/^[—–-]$/.test(nx)) return 60;                          // don't start a line with a dash
+  if (/[,;:]["'”’)\]]*$/.test(w)) return 0;
+  if (/^[—–-]$/.test(w) || /[—–]$/.test(w)) return 0;
+  if (/[.!?]["'”’)\]]*$/.test(w)) return 0;
+  if (/\]$/.test(w) || /^\[/.test(nx)) return 5;
+  if (STICKY.has(bw)) return 150;                               // never strand "the", "to", "my"...
+  if (/^[A-Z]/.test(w.replace(/^[“"‘'(]/, "")) && /^[A-Z]/.test(nx.replace(/^[“"‘'(]/, ""))) return 70; // names
+  if (/^\d/.test(w)) return 45;
+  if (CONJ.has(bn)) return 12;
+  if (bn === "of") return 35;
+  if (PREP.has(bn)) return 22;
+  return 50;
+}
+
+// Names stay on one line: "Michael Francis", "Donald Kohler", "Molly Q. Ford", "Vincent van Gogh", "Dr. Jane Smith".
+// glue[k] = true means never break between words[k] and words[k+1] (unless the name alone is wider than a line).
+const PARTICLES = new Set(["da","de","del","della","der","den","di","du","la","le","van","von","bin","ibn","al","dos","das","ter","y"]);
+const isCap = w => /^[“"‘'(\[]*\p{Lu}/u.test(w);
+const endsClause = w => /[,;:.!?…—–]["'”’)\]]*$/.test(w) && !/^\p{Lu}\.$/u.test(w.replace(/^[“"‘'(]+/, "")) && !ABBR.has(bare(w) + ".");
+function nameGlue(words){
+  const glue = new Array(words.length).fill(false);
+  for (let k = 0; k < words.length - 1; k++) {
+    if (!isCap(words[k]) || endsClause(words[k])) continue;
+    if (isCap(words[k + 1])) { glue[k] = true; continue; }
+    // particles: "van Gogh", "de la Hoya"
+    let m = k + 1;
+    while (m < words.length - 1 && m - k <= 2 && PARTICLES.has(words[m].toLowerCase())) m++;
+    if (m > k + 1 && isCap(words[m])) for (let x = k; x < m; x++) glue[x] = true;
+  }
+  return glue;
+}
+
+function smartBreak(sentence, limit){
+  const words = sentence.split(" ").filter(Boolean), n = words.length;
+  if (n < 2 || textWidth(sentence) <= limit) return [sentence];
+  const ww = words.map(textWidth), sp = HW[" "];
+  const inside = []; let d = 0, q = 0;                          // is boundary after word k inside [..] / "..."
+  words.forEach((w, k) => {
+    for (const c of w) { if (c === "[" ) d++; if (c === "]") d = Math.max(0, d-1); if (c === "“") q++; if (c === "”") q = Math.max(0, q-1); }
+    inside[k] = d > 0 || q > 0;
+  });
+  const glue = nameGlue(words);
+  const best = new Array(n + 1).fill(Infinity), from = new Array(n + 1).fill(0);
+  best[0] = 0;
+  for (let j = 1; j <= n; j++) {
+    let width = -sp;
+    for (let i = j - 1; i >= 0; i--) {
+      width += ww[i] + sp;
+      const count = j - i;
+      if (width > limit && count > 1) break;
+      const last = j === n;
+      let cost = 5;
+      if (!last) {
+        const slack = Math.max(0, (limit - width) / limit);
+        cost += slack * slack * 60 + (slack > 0.62 ? 30 : 0) + breakPenalty(words, j - 1, inside);
+        if (glue[j - 1]) cost += 1000;                        // splitting a name: only if nothing else fits
+      } else {
+        if (count === 1 && n > 3) cost += 60;
+        else if (count === 2 && n > 6) cost += 15;
+      }
+      const total = best[i] + cost;
+      if (total < best[j]) { best[j] = total; from[j] = i; }
+    }
+  }
+  const lines = []; let j = n;
+  while (j > 0) { const i = from[j]; lines.unshift(words.slice(i, j).join(" ")); j = i; }
+  return lines;
+}
+
+// Square bullets and glyphs that show up as boxes: ■□▪▫ ◻◼◽◾ ☐ ❏❐❑❒ ⬛⬜, Wingdings/Symbol
+// private-use characters (e.g. U+F0A7, U+F0B7) and the replacement character.
+const SQUARES = "\u25A0-\u25AB\u25FB-\u25FE\u2610-\u2612\u274F-\u2752\u2B1B-\u2B1E\uE000-\uF8FF\uFFFD";
+const SQ_LINE = new RegExp(`^[ \\t]*(?:[${SQUARES}]+|§(?=[ \\t])|o(?=\\t))[ \\t]*`, "gm");
+const SQ_INLINE = new RegExp(`[ \\t]+[${SQUARES}]+[ \\t]+`, "g");
+const SQ_ANY = new RegExp(`[${SQUARES}]`, "g");
+
+// HTML entities that leak in from emails, web pages and CMS exports: &#39; &#x27; &apos; &rsquo; &amp; ...
+const ENTITIES = { amp:"&", lt:"<", gt:">", quot:'"', apos:"'", nbsp:" ", rsquo:"’", lsquo:"‘", rdquo:"”", ldquo:"“",
+  sbquo:"‚", bdquo:"„", mdash:"—", ndash:"–", hellip:"…", bull:"•", middot:"·", prime:"′", Prime:"″", trade:"™",
+  reg:"®", copy:"©", deg:"°", eacute:"é", egrave:"è", aacute:"á", agrave:"à", iacute:"í", oacute:"ó", uacute:"ú",
+  ntilde:"ñ", ccedil:"ç", uuml:"ü", ouml:"ö", auml:"ä", szlig:"ß", euro:"€", pound:"£", cent:"¢", times:"×", shy:"" };
+function decodeEntities(s){
+  for (let pass = 0; pass < 3; pass++) {            // handles double-encoded text like &amp;#39;
+    const next = s.replace(/&(#\d{1,7}|#[xX][0-9a-fA-F]{1,6}|[a-zA-Z]{2,8});/g, (m, e) => {
+      if (e[0] === "#") {
+        const cp = e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+        return cp > 0 && cp <= 0x10FFFF ? String.fromCodePoint(cp) : m;
+      }
+      return ENTITIES[e] ?? m;
+    });
+    if (next === s) break;
+    s = next;
+  }
+  return s;
+}
+
+function toUnits(text, opt){
+  // Normalise, then turn source lines into units: {type:'para'|'item'|'cue', text}
+  text = decodeEntities(text).replace(/\r\n?/g, "\n").replace(/[\u2028\u2029\u0085\u000B\u000C]/g, "\n")
+             .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, " ")   // odd spaces from Word / Docs / PDFs
+             .replace(/[\u200B-\u200D\u2060\uFEFF\u00AD]/g, "");               // zero-width characters, soft hyphens
+  // A line break that got lost leaves sentences glued together: "positive comps.Women’s were..."
+  // Any letter or digit, then . ! or ?, then a capital with no space. Skips acronyms/initials (U.S.A, J.K.Rowling).
+  text = text.replace(/(\S+?)([.!?]+["”’)]?)(?=["“‘]?[A-Z])/g, (m, before, stop) => {
+    if (!/[A-Za-z0-9%)\]”’"']$/.test(before)) return m;
+    if (stop[0] === "." && /(^|[.\s(])[A-Za-z]$/.test(before)) return m;   // single-letter segment: U.S.A, J.K.
+    return before + stop + " ";
+  }).replace(/%([.!?])(?=\d)/g, "%$1 ")
+    .replace(/(…|\.{3})(?=["“‘]?[A-Za-z])/g, "$1 ");            // "own…it's" → "own… it's"                      // "up 10%.2027 looks..."
+  // Square bullets are always taken out. \u0001 marks "this line was a list item".
+  text = text.replace(SQ_LINE, "\u0001 ")
+             .split("\n").map(l => (l.match(SQ_INLINE) || []).length >= 2 ? l.replace(SQ_INLINE, "\n\u0001 ") : l).join("\n")
+             .replace(SQ_ANY, "");
+  text = text.replace(/[ \t]*\t[ \t]*/g, " ").replace(/[ ]{2,}/g, " ");
+  if (opt.lists) text = text.replace(/[ ]+([•●◦‣➢➤►])[ ]+/g, "\n$1 ");   // inline bullets
+  const lines = text.split("\n").map(s => s.trim());
+  const units = []; let buf = null;
+  const flush = () => { if (buf) { units.push(buf); buf = null; } };
+  for (const line of lines) {
+    if (!line || line === "\u0001") { flush(); continue; }
+    if (line[0] === "\u0001") {
+      flush();
+      buf = { type: opt.lists ? "item" : "para", text: line.slice(1).trim() };
+      continue;
+    }
+    let isItem = opt.lists && BULLET_RE.test(line);
+    // A dash at the start of a line that continues an unfinished sentence ("…sales up 3%" / "— its fifth…")
+    // is punctuation, not a bullet.
+    if (isItem && /^[-–—*]\s/.test(line) && buf && buf.type === "para" && !/[:.!?]["”’]?$/.test(buf.text)) isItem = false;
+    if (isItem) { flush(); buf = { type: "item", text: line }; continue; }
+    if (buf) {
+      // A line that doesn't end a sentence continues on the next line (hard-wrapped
+      // PDFs, or a script that was already broken into lines). ALL-CAPS headings stay put.
+      const prevEnds = /[.!?:;]["”’]?$/.test(buf.text);
+      const heading = /[A-Z]/.test(buf.text) && buf.text === buf.text.toUpperCase();
+      const hardWrap = !prevEnds && !heading;
+      if (hardWrap) { buf.text += " " + line; continue; }
+      flush();
+    }
+    buf = { type: "para", text: line };
+  }
+  flush();
+  if (opt.cues) {
+    const out = [];
+    for (const u of units) {
+      if (u.type !== "para") { out.push(u); continue; }
+      u.text.split(/(\[[^\]]+\])/).map(s => s.trim()).filter(Boolean)
+        .forEach(s => out.push({ type: /^\[[^\]]+\]$/.test(s) ? "cue" : "para", text: s }));
+    }
+    return out;
+  }
+  return units;
+}
+
+function formatScript(text, opt){
+  const limit = opt.len * AVG;
+  const units = toUnits(text, opt);
+  const wrap = s => opt.breaks ? smartBreak(s, limit).join("\n") : s;
+  // Every comma ends the line (no blank line). Commas inside [cues] / (asides) and in numbers like 1,000 are left alone.
+  const breakText = s => {
+    if (!opt.commas) return wrap(s);
+    const words = s.split(" ").filter(Boolean), inside = protectedRanges(words), parts = []; let cur = [];
+    words.forEach((w, k) => {
+      cur.push(w);
+      if (!inside[k] && /(,|…|\.\.\.)["'”’)\]]*$/.test(w) && k < words.length - 1) { parts.push(cur.join(" ")); cur = []; }
+    });
+    if (cur.length) parts.push(cur.join(" "));
+    return parts.map(wrap).join("\n");
+  };
+  let out = "", prev = null;
+  for (const u of units) {
+    let block;
+    if (u.type === "item") {
+      let t = u.text;
+      if (opt.stripBullets) t = t.replace(/^\s*[•●◦‣·○➢➤►\-–—*]\s+/, "");
+      block = (opt.sentences ? splitSentences(t) : [t]).map(breakText).join("\n\n");
+    } else if (u.type === "cue") {
+      block = u.text;
+    } else {
+      const sentences = opt.sentences ? splitSentences(u.text) : [u.text];
+      block = sentences.map(breakText).join(opt.sentences ? "\n\n" : " ");
+      if (!opt.sentences && opt.breaks) block = breakText(u.text);
+    }
+    // Consecutive list items share a single line break, unless the item ended a sentence —
+    // every full stop gets a blank line after it.
+    const tight = prev === "item" && u.type === "item" && !/[.!?…]["”’)\]]?$/.test(out);
+    if (out) out += tight ? "\n" : "\n\n";
+    out += block; prev = u.type;
+  }
+  return out;
+}
+
+/* ============================================================
+   UI
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const state = { source: "", header: null, name: "script", pkg: null, docLen: null };
+// pkg = { name, isFolder, files: [{path, data(ArrayBuffer|string)}], rtfPath }
+
+const store = {
+  get(){ try { return JSON.parse(localStorage.getItem("prompterPrep") || "{}"); } catch { return {}; } },
+  set(v){ try { localStorage.setItem("prompterPrep", JSON.stringify(v)); } catch {} }
+};
+const optIds = { breaks:"optBreaks", lists:"optLists", stripBullets:"optBullets", cues:"optCues" };
+function readOpts(){
+  const o = { len: +$("optLen").value, sentences: true, commas: true };   // always: blank line after every sentence, new line after every comma or …
+  for (const [k, id] of Object.entries(optIds)) o[k] = $(id).checked;
+  return o;
+}
+function applyStored(){
+  const s = store.get();
+  for (const [k, id] of Object.entries(optIds)) if (typeof s[k] === "boolean") $(id).checked = s[k];
+  if (s.len) $("optLen").value = s.len;
+  if (s.pfs) $("pfs").value = s.pfs;
+}
+
+function render(){
+  const opt = readOpts();
+  store.set({ ...opt, pfs: +$("pfs").value });
+  $("lenOut").textContent = opt.len;
+  $("rangeRow").style.opacity = opt.breaks ? 1 : .45;
+  const src = state.source.trim();
+  $("out").value = src ? formatScript(src, opt) : "";
+  layoutPreview(); updateStats();
+}
+
+function layoutPreview(){
+  const pfs = +$("pfs").value, len = +$("optLen").value;
+  const w = Math.ceil(len * AVG * pfs / 1000) + 4;
+  const out = $("out");
+  out.style.setProperty("--pfs", pfs + "px");
+  out.style.width = w + "px";
+  out.style.height = "auto"; out.style.height = out.scrollHeight + "px";
+  const sc = $("scroll"), edge = $("edge");
+  const left = Math.max(24, (sc.clientWidth - w) / 2) + w - sc.scrollLeft;
+  edge.style.left = left + "px";
+  edge.hidden = !$("optBreaks").checked;
+}
+
+function updateStats(){
+  const t = $("out").value, words = (t.match(/\S+/g) || []).length;
+  const has = !!t.trim();
+  $("copy").disabled = $("dlRtf").disabled = !has;
+  $("dlPkg").hidden = !state.pkg; $("dlPkg").disabled = !has;
+  if (!has) { $("stats").textContent = "No script yet"; return; }
+  const mins = words / 150, m = Math.floor(mins), s = Math.round((mins - m) * 60);
+  $("stats").textContent = `${words} words, about ${m ? m + " min " : ""}${s} sec at 150 wpm`;
+}
+
+function toast(msg){ const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 1800); }
+function setLoaded(html, isErr){ $("loaded").innerHTML = isErr ? `<span class="err">${html}</span>` : html; }
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function setSource(text, meta = {}){
+  state.source = text; state.header = meta.header || null; state.name = meta.name || "script";
+  state.pkg = meta.pkg || null; state.docLen = meta.docLen || null;
+  $("src").value = text.trim();
+  $("autoLen").hidden = !state.docLen;
+  if (state.docLen) { $("optLen").value = state.docLen; $("autoLen").textContent = `Match document (${state.docLen})`; }
+  render();
+}
+
+/* ---------- reading inputs ---------- */
+const readText = f => f.text();
+const readBuf = f => f.arrayBuffer();
+const extOf = n => (n.match(/\.([^./]+)$/) || [,""])[1].toLowerCase();
+const stem = n => n.replace(/\.[^./]+$/, "");
+
+async function docxToText(buf){
+  const { value } = await mammoth.convertToHtml({ arrayBuffer: buf });
+  const doc = new DOMParser().parseFromString(value, "text/html");
+  const parts = [];
+  doc.body.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6").forEach(el => {
+    if (el.tagName === "P" && el.closest("li")) return;
+    const t = el.textContent.trim(); if (!t) return;
+    if (el.tagName === "LI") parts.push((el.parentElement.tagName === "OL" ? (Array.from(el.parentElement.children).indexOf(el) + 1) + ". " : "• ") + t);
+    else parts.push(t);
+  });
+  return parts.join("\n\n");
+}
+
+function lineLenFromPackage(json, fontSize){
+  try {
+    const r = json[0][1].resolution[0][1][1];
+    const avail = r.totalSize[0] - r.insets.left - r.insets.right;
+    if (!(avail > 0) || !fontSize) return null;
+    return Math.max(12, Math.min(60, Math.floor(avail / (fontSize * AVG / 1000))));
+  } catch { return null; }
+}
+
+async function handleFileSet(entries, pkgName, isFolder){
+  // entries: [{path, file}]
+  const rtf = entries.find(e => extOf(e.path) === "rtf");
+  const json = entries.find(e => /(^|\/)master\.json$/i.test(e.path));
+  if (!rtf) throw new Error("No .rtf script found in that document.");
+  const raw = await readText(rtf.file);
+  const parsed = parseRTF(raw);
+  let docLen = null;
+  if (json) { try { docLen = lineLenFromPackage(JSON.parse(await readText(json.file)), parsed.fontSize); } catch {} }
+  const files = [];
+  for (const e of entries) files.push({ path: e.path, data: e === rtf ? null : await readBuf(e.file) });
+  setSource(parsed.text, { header: parsed.header, name: stem(pkgName), docLen,
+    pkg: { name: pkgName, isFolder, files, rtfPath: rtf.path } });
+  setLoaded(`Loaded <b>${esc(pkgName)}</b>, ${entries.length} files. The script text is replaced; everything else is kept as is.`);
+}
+
+async function handleZip(file){
+  const zip = await JSZip.loadAsync(await readBuf(file));
+  const entries = [];
+  for (const [path, z] of Object.entries(zip.files)) {
+    if (z.dir || /(^|\/)(__MACOSX|\.DS_Store)/.test(path)) continue;
+    entries.push({ path, file: new File([await z.async("arraybuffer")], path.split("/").pop()) });
+  }
+  return handleFileSet(entries, file.name, "zip");
+}
+
+async function isZip(file){
+  const b = new Uint8Array(await file.slice(0, 2).arrayBuffer());
+  return b[0] === 0x50 && b[1] === 0x4B;
+}
+
+async function handleSingle(file){
+  const ext = extOf(file.name);
+  if (ext === "tp3" || ext === "zip") {
+    if (!(await isZip(file))) throw new Error("Couldn't open that .tp3. Drag it straight from Finder onto this page.");
+    return handleZip(file);
+  }
+  if (ext === "rtf") {
+    const p = parseRTF(await readText(file));
+    setSource(p.text, { header: p.header, name: stem(file.name) });
+  } else if (ext === "docx") {
+    setSource(await docxToText(await readBuf(file)), { name: stem(file.name) });
+  } else if (["txt","md","text",""].includes(ext)) {
+    setSource(await readText(file), { name: stem(file.name) });
+  } else throw new Error(`Can't read .${ext} files. Use .rtf, .txt, .md or .docx.`);
+  setLoaded(`Loaded <b>${esc(file.name)}</b>`);
+}
+
+async function handleFiles(list){
+  const files = Array.from(list);
+  if (!files.length) return;
+  if (files.length > 1 || files.some(f => /master\.json$/i.test(f.name))) {
+    const hasRtf = files.some(f => extOf(f.name) === "rtf");
+    if (hasRtf && files.length > 1) return handleFileSet(files.map(f => ({ path: f.name, file: f })), "formatted-script", false);
+  }
+  return handleSingle(files[0]);
+}
+
+function readDir(entry, prefix = ""){
+  return new Promise((resolve, reject) => {
+    const reader = entry.createReader(), all = [];
+    const next = () => reader.readEntries(async batch => {
+      if (!batch.length) {
+        try {
+          const res = [];
+          for (const e of all) {
+            if (e.isDirectory) res.push(...await readDir(e, prefix + e.name + "/"));
+            else res.push({ path: prefix + e.name, file: await new Promise((r, j) => e.file(r, j)) });
+          }
+          resolve(res);
+        } catch (err) { reject(err); }
+      } else { all.push(...batch); next(); }
+    }, reject);
+    next();
+  });
+}
+
+async function handleDrop(dt){
+  const items = Array.from(dt.items || []);
+  const entry = items.length === 1 && items[0].webkitGetAsEntry ? items[0].webkitGetAsEntry() : null;
+  if (entry && entry.isDirectory) {
+    const files = (await readDir(entry)).filter(f => !/(^|\/)\.DS_Store$/.test(f.path));
+    return handleFileSet(files, entry.name, true);
+  }
+  return handleFiles(dt.files);
+}
+
+const guard = fn => async (...a) => { try { await fn(...a); } catch (e) { console.error(e); setLoaded(esc(e.message || String(e)), true); } };
+
+/* ---------- outputs ---------- */
+function download(blob, name){
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+const currentRTF = () => toRTF($("out").value.replace(/\s+$/, ""), state.header);
+
+$("dlRtf").onclick = () => download(new Blob([currentRTF()], { type: "application/rtf" }), `${state.name} (formatted).rtf`);
+$("copy").onclick = async () => {
+  try { await navigator.clipboard.writeText($("out").value); toast("Copied"); }
+  catch { $("out").select(); document.execCommand("copy"); toast("Copied"); }
+};
+$("dlPkg").onclick = guard(async () => {
+  const p = state.pkg; if (!p) return;
+  const folder = p.isFolder === true;
+  const zip = new JSZip(), root = folder ? zip.folder(p.name) : zip;
+  for (const f of p.files) root.file(f.path, f.path === p.rtfPath ? currentRTF() : f.data);
+  const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", mimeType: "application/zip" });
+  if (p.isFolder === "zip") { download(blob, p.name); toast("Downloaded " + p.name); }
+  else if (folder) { download(blob, p.name + ".zip"); toast("Downloaded. Double-click the .zip to get the .tp3 back"); }
+  else { download(blob, "formatted-script.zip"); toast("Downloaded"); }
+});
+
+/* ---------- wiring ---------- */
+const drop = $("drop");
+drop.onclick = () => $("file").click();
+drop.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("file").click(); } };
+$("file").onchange = guard(async e => { await handleFiles(e.target.files); e.target.value = ""; });
+["dragenter","dragover"].forEach(t => document.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(t => document.addEventListener(t, e => { e.preventDefault(); if (t === "drop" || !e.relatedTarget) drop.classList.remove("over"); }));
+document.addEventListener("drop", guard(e => handleDrop(e.dataTransfer)));
+
+let pasteTimer;
+$("src").addEventListener("input", () => {
+  clearTimeout(pasteTimer);
+  pasteTimer = setTimeout(() => {
+    const keepPkg = state.pkg;  // editing the source keeps the loaded document for download
+    state.source = $("src").value;
+    if (!keepPkg && !state.header) setLoaded("");
+    render();
+  }, 150);
+});
+Object.values(optIds).forEach(id => $(id).addEventListener("change", render));
+$("optLen").addEventListener("input", render);
+$("autoLen").onclick = () => { $("optLen").value = state.docLen; render(); };
+$("pfs").addEventListener("input", () => { store.set({ ...readOpts(), pfs: +$("pfs").value }); layoutPreview(); });
+$("out").addEventListener("input", () => { layoutPreview(); updateStats(); });
+$("scroll").addEventListener("scroll", layoutPreview);
+window.addEventListener("resize", layoutPreview);
+
+applyStored(); render();
+</script>
+</body>
+</html>
