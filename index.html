@@ -133,7 +133,7 @@ textarea.out[hidden]{display:none}
   <aside class="side">
     <div>
       <h1>Prompter Prep</h1>
-      <p class="lede">Drop a script, get it back broken into readable lines. <span style="opacity:.7">Version 33</span></p>
+      <p class="lede">Drop a script, get it back broken into readable lines. <span style="opacity:.7">Version 35</span></p>
     </div>
 
     <div>
@@ -913,9 +913,16 @@ async function handleSingle(file){
 async function handleFiles(list){
   const files = Array.from(list);
   if (!files.length) return;
+  // Firefox on a Mac: one file picked from inside a .tp3 — point to selecting the whole contents.
+  if (files.length === 1 && /^(master\.json|overlay\.png|TXT\.rtf)$/i.test(files[0].name) && isFirefoxMac) {
+    throw new Error("That's one file from inside a .tp3. Open the .tp3 in the picker, press ⌘A to select everything in it, then choose.");
+  }
   if (files.length > 1 || files.some(f => /master\.json$/i.test(f.name))) {
     const hasRtf = files.some(f => extOf(f.name) === "rtf");
-    if (hasRtf && files.length > 1) return handleFileSet(files.map(f => ({ path: f.name, file: f })), "formatted-script", false);
+    if (hasRtf && files.length > 1) {
+      const isPkg = files.some(f => /master\.json$/i.test(f.name));
+      return handleFileSet(files.map(f => ({ path: f.name, file: f })), isPkg ? "formatted-script.tp3" : "formatted-script", isPkg);
+    }
   }
   return handleSingle(files[0]);
 }
@@ -1010,6 +1017,9 @@ const drop = $("drop");
 // iPhone/iPad can't pick folders, so there the .tp3 goes through the normal file picker (as a compressed .zip).
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 $("pickFile").onclick = () => $("file").click();
+// Firefox on a Mac shows a .tp3 as a folder in its picker. Selecting everything inside it (⌘A) is detected
+// automatically below and rebuilt as a .tp3, so no separate button is needed.
+const isFirefoxMac = /Firefox\//.test(navigator.userAgent) && /Mac/.test(navigator.platform) && !isIOS;
 // The fallback link in the error message opens the folder picker.
 $("loaded").addEventListener("click", e => { if (e.target.id === "asFolder") $("folder").click(); });
 $("folder").onchange = guard(async e => {
