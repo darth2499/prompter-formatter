@@ -1,78 +1,138 @@
 <!DOCTYPE html>
+<!--
+  Prompter Prep: changelog
+  Only a major overhaul bumps the whole number (x.0); other changes go up 0.1, one decimal only.
+  Related fixes are grouped into one version.
+
+  2.7  Red view: text removed from the start of a line shows back in front of that line’s words
+  2.6  Speakers: "Name:" labels sit right above their lines and are colour-coded in the preview and the .rtf/.tp3
+  2.5  Code clean-up and ~40% faster formatting; output verified identical on 1,900+ test cases
+  2.4  Apple-style redesign: grouped settings with switches, system font, file row in the drop zone
+  2.3  Design: clickable drop box, one-row top bar, shorter notices, scrollable removed list
+  2.2  Removed text shown in red in the preview; list of removed items; copy never includes it
+  2.1  Safety check: every word and number verified after formatting; removal risks fixed
+  2.0  Remove (stage directions) and page numbers; sentences split by a page break join back together
+  1.5  Preview: scrolls anywhere, text size follows the window, placeholder and guide line fixed
+  1.4  New line after every comma, ellipsis and dash; first and last names kept on the same line
+  1.3  Sentence and list fixes: glued sentences, lowercase starts, U.S./initials, numbered lists
+  1.2  Clean-up: square and other bullets removed, HTML codes like &#39; and invisible characters fixed
+  1.1  .tp3 files on Mac, iPhone, Safari, Chrome and Firefox
+  1.0  First version: blank line after sentences, lists one per line, smart line breaks, .rtf files
+-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Prompter Prep</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <style>
 :root{
-  --bench:#E4E6E9; --panel:#FFFFFF; --ink:#1B1C1F; --muted:#5E626A; --rule:#C8CBD1;
-  --overlay:#666666; --glass:#000000; --glass-text:#FFFFFF; --cue:#FF1A0D;
-  --ui:"Instrument Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  /* Apple-style grouped palette */
+  --bench:#F2F2F7; --side:#F2F2F7; --panel:#FFFFFF; --ink:#1C1C1E; --muted:#8A8A8E; --muted2:#6C6C70;
+  --rule:#D1D1D6; --hair:rgba(60,60,67,.18); --fill:rgba(120,120,128,.12); --fill2:rgba(120,120,128,.2);
+  --glass:#000000; --glass-text:#FFFFFF; --cue:#FF3B30; --danger:#D70015;
+  --ui:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --prompt:Helvetica, "Helvetica Neue", Arial, sans-serif;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
 }
 @media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){ --bench:#1D1F23; --panel:#2A2D32; --ink:#ECEDEF; --muted:#A3A7AE; --rule:#43474E; }
+  :root:not([data-theme="light"]){ --bench:#1C1C1E; --side:#1C1C1E; --panel:#2C2C2E; --ink:#F5F5F7; --muted:#8D8D93; --muted2:#AEAEB2;
+    --rule:#3A3A3C; --hair:rgba(84,84,88,.6); --fill:rgba(118,118,128,.24); --fill2:rgba(118,118,128,.36); --danger:#FF6961; }
 }
-:root[data-theme="dark"]{ --bench:#1D1F23; --panel:#2A2D32; --ink:#ECEDEF; --muted:#A3A7AE; --rule:#43474E; }
+:root[data-theme="dark"]{ --bench:#1C1C1E; --side:#1C1C1E; --panel:#2C2C2E; --ink:#F5F5F7; --muted:#8D8D93; --muted2:#AEAEB2;
+  --rule:#3A3A3C; --hair:rgba(84,84,88,.6); --fill:rgba(118,118,128,.24); --fill2:rgba(118,118,128,.36); --danger:#FF6961; }
 *,*::before,*::after{box-sizing:inherit}
 html,body{margin:0}
-body{background:var(--bench);color:var(--ink);font:15px/1.5 var(--ui);min-height:100vh}
+body{background:var(--bench);color:var(--ink);font:14px/1.4 var(--ui);min-height:100vh;-webkit-font-smoothing:antialiased}
 button,input,textarea,select{font:inherit;color:inherit}
-:focus-visible{outline:2px solid var(--cue);outline-offset:2px}
+:focus-visible{outline:3px solid color-mix(in srgb,var(--cue) 45%,transparent);outline-offset:1px;border-radius:8px}
 
-.app{display:grid;grid-template-columns:minmax(300px,420px) 1fr;min-height:100vh}
-.side{padding:28px 28px 40px;display:flex;flex-direction:column;gap:24px;border-right:1px solid var(--rule)}
-h1{font-size:22px;font-weight:600;margin:0;letter-spacing:-.01em}
-.lede{color:var(--muted);margin:4px 0 0;font-size:14px}
+.app{display:grid;grid-template-columns:minmax(300px,380px) 1fr;min-height:100vh}
+.side{padding:28px 20px 24px;display:flex;flex-direction:column;gap:22px;background:var(--side);border-right:1px solid var(--hair)}
+h1{font-size:22px;font-weight:700;margin:0 4px;letter-spacing:-.02em}
 
-.drop{border:1.5px dashed var(--rule);border-radius:10px;padding:22px 18px;text-align:center;background:var(--panel);cursor:pointer;transition:border-color .15s,background .15s}
+/* Drop zone */
+.drop{border:1.5px dashed var(--rule);border-radius:14px;padding:22px 16px;text-align:center;background:var(--panel);cursor:pointer;
+  transition:border-color .15s,background .15s}
 .drop:hover{border-color:var(--muted)}
-.drop.over{border-color:var(--cue);background:color-mix(in srgb,var(--cue) 6%,var(--panel))}
-.drop strong{display:block;font-weight:600}
-.drop span{color:var(--muted);font-size:13px}
-.drop{padding:26px 18px 24px}
-.dropIco{display:block;width:30px;height:30px;margin:0 auto 10px;color:var(--muted);transition:color .15s,transform .15s}
+.drop.over{border-color:var(--cue);border-style:solid;background:color-mix(in srgb,var(--cue) 6%,var(--panel))}
+.drop strong{display:block;font-weight:600;font-size:15px}
+.drop span{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+.dropIco{display:block;width:28px;height:28px;margin:0 auto 8px;color:var(--muted);transition:color .15s,transform .15s}
 .drop:hover .dropIco,.drop.over .dropIco{color:var(--cue)}
 .drop.over .dropIco{transform:translateY(-3px)}
-.drop:focus-visible{outline:2px solid var(--cue);outline-offset:2px}
-.drop .dropClick{display:block;margin-top:8px;color:var(--ink);font-size:13px;text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--rule)}
-.drop:hover .dropClick{text-decoration-color:var(--muted)}
+.drop:focus-visible{outline:3px solid color-mix(in srgb,var(--cue) 45%,transparent);outline-offset:2px}
+/* Loaded: the drop zone becomes a file row */
+.drop.has{display:flex;align-items:center;gap:12px;text-align:left;padding:14px 16px;border-style:solid;border-color:transparent}
+.drop.has:hover{border-color:var(--rule)}
+.drop.has .dropIco,.drop.has .dropEmpty{display:none}
+.fileIco{display:none;width:34px;height:40px;flex:none;color:var(--cue)}
+.drop.has .fileIco{display:block}
+.fileMeta{display:none;min-width:0;flex:1}
+.drop.has .fileMeta{display:block}
+.fileName{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drop .fileSub{margin-top:1px}
+#dropClick{color:var(--cue);margin-top:6px}
 @media (prefers-reduced-motion:reduce){.drop.over .dropIco{transform:none}}
-.loaded{font-size:13px;color:var(--muted);margin-top:8px;min-height:1.2em}
-.loaded b{color:var(--ink);font-weight:500}
+.loaded{font-size:12.5px;color:var(--muted);margin:8px 4px 0}
+.loaded:empty{display:none}
+.loaded b{color:var(--ink);font-weight:600}
 
-textarea.src{width:100%;min-height:150px;resize:vertical;border:1px solid var(--rule);border-radius:8px;background:var(--panel);padding:10px 12px;font-size:14px;line-height:1.45}
-label.head{font-weight:600;font-size:14px;display:block;margin-bottom:6px}
+/* Grouped sections, like Settings */
+.group{display:flex;flex-direction:column}
+.groupHead{font-size:13px;font-weight:600;color:var(--muted2);margin:0 16px 6px}
+.card{background:var(--panel);border-radius:12px;overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;min-height:44px;padding:9px 16px;position:relative;cursor:pointer}
+.row + .row::before{content:"";position:absolute;top:0;left:16px;right:0;border-top:.5px solid var(--hair)}
+@media (max-resolution:1dppx){.row + .row::before{border-top-width:1px}}
+.row .label{flex:1;font-size:14px}
+.row .label small{display:block;font-size:12px;color:var(--muted);margin-top:1px}
+.row.slider{flex-wrap:wrap;cursor:default;row-gap:0;padding-bottom:6px}
+.row.slider .val{font-variant-numeric:tabular-nums;color:var(--muted2)}
+.row.slider input{flex-basis:100%}
+.row.off{opacity:.4;pointer-events:none}
+.foot{font-size:12px;color:var(--muted);margin:7px 16px 0;line-height:1.4}
 
-fieldset{border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
-legend{font-weight:600;font-size:14px;margin-bottom:8px;padding:0}
-.opt{display:flex;gap:10px;align-items:flex-start;font-size:14px;cursor:pointer}
-.opt input{margin-top:3px;accent-color:var(--cue)}
-.opt small{display:block;color:var(--muted);font-size:12.5px}
-.range{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;font-size:14px;padding-left:24px}
-.range input{grid-column:1/-1;accent-color:var(--cue);width:100%}
-.range output{font-variant-numeric:tabular-nums;font-weight:500}
-.link{background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:12.5px;justify-self:start}
+/* Switch */
+.switch{appearance:none;-webkit-appearance:none;flex:none;width:42px;height:26px;margin:0;border-radius:13px;background:var(--fill2);
+  position:relative;cursor:pointer;transition:background .2s}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#fff;
+  box-shadow:0 2px 4px rgba(0,0,0,.2),0 0 1px rgba(0,0,0,.2);transition:transform .2s}
+.switch:checked{background:#34C759}
+.switch:checked::after{transform:translateX(16px)}
+.switch:focus-visible{outline:3px solid color-mix(in srgb,#34C759 50%,transparent);outline-offset:2px}
+
+/* Slider */
+input[type=range]{-webkit-appearance:none;appearance:none;height:28px;background:transparent;margin:0;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(var(--cue),var(--cue)) 0/var(--p,50%) 100% no-repeat,var(--fill2)}
+input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--fill2)}
+input[type=range]::-moz-range-progress{height:4px;border-radius:2px;background:var(--cue)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;margin-top:-9px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 4px rgba(0,0,0,.25),0 0 1px rgba(0,0,0,.3)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25),0 0 1px rgba(0,0,0,.3)}
+
+textarea.src{display:block;width:100%;min-height:120px;resize:vertical;border:0;border-radius:12px;background:var(--panel);
+  padding:12px 16px;font-size:14px;line-height:1.45}
+textarea.src::placeholder{color:var(--muted)}
+.link{background:none;border:0;padding:0;color:var(--cue);cursor:pointer;font-size:13px}
+.link:hover{text-decoration:underline}
+.version{margin-top:auto;padding-top:8px;font-size:11.5px;color:var(--muted);text-align:center}
 
 .stage{display:flex;flex-direction:column;min-width:0}
-.bar{display:flex;flex-wrap:nowrap;gap:8px;align-items:center;padding:14px 24px;border-bottom:1px solid var(--rule);min-width:0}
+.bar{display:flex;flex-wrap:nowrap;gap:8px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--hair);min-width:0;background:var(--bench)}
 .bar .btn{white-space:nowrap;flex:none;display:inline-flex;align-items:center;gap:6px}
 .bar .btn[hidden]{display:none}
 .ico{width:15px;height:15px;flex:none}
 .stats{color:var(--muted);font-size:13px;margin-right:auto;font-variant-numeric:tabular-nums;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.btn{border:1px solid var(--rule);background:var(--panel);border-radius:7px;padding:8px 14px;cursor:pointer;font-weight:500;font-size:14px}
-.btn:hover:not(:disabled){border-color:var(--muted)}
-.btn:disabled{opacity:.45;cursor:default}
-.btn.primary{background:var(--ink);color:var(--bench);border-color:var(--ink)}
+.btn{border:0;background:var(--fill);border-radius:8px;padding:7px 14px;cursor:pointer;font-weight:500;font-size:13.5px;transition:background .15s}
+.btn:hover:not(:disabled){background:var(--fill2)}
+.btn:active:not(:disabled){transform:scale(.98)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.primary{background:var(--cue);color:#fff}
+.btn.primary:hover:not(:disabled){background:color-mix(in srgb,var(--cue) 88%,#000)}
 
 .glass{position:relative;flex:1;background:var(--glass);overflow:hidden;min-height:60vh}
 .glass::before{content:"";position:absolute;left:18px;top:50%;width:0;height:0;transform:translateY(-50%);
@@ -81,6 +141,12 @@ textarea.out{position:absolute;inset:0;width:100%;height:100%;margin:0;backgroun
   font-family:var(--prompt);font-size:var(--pfs,34px);line-height:1.2;white-space:pre;overflow:auto;
   overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:40vh 24px 50vh}
 textarea.out:focus-visible{outline:none}
+.hl{position:absolute;inset:0;overflow:hidden;pointer-events:none;color:var(--glass-text);font-family:var(--prompt);
+  font-size:var(--pfs,34px);line-height:1.2;white-space:pre;padding:40vh 24px 50vh}
+.hl[hidden]{display:none}
+.glass.tinted textarea.out{color:transparent;caret-color:var(--glass-text)}
+.glass.tinted textarea.out::selection{color:transparent;background:rgba(255,255,255,.28)}
+.spk{font-weight:inherit}   /* same weight as the textarea above it, so the caret lines up */
 .view{position:absolute;inset:0;overflow:auto;overscroll-behavior:contain;color:var(--glass-text);font-family:var(--prompt);
   font-size:var(--pfs,34px);line-height:1.2;white-space:pre-wrap;padding:40vh 24px 50vh;cursor:default}
 .view[hidden]{display:none}
@@ -91,18 +157,18 @@ textarea.out[hidden]{display:none}
 .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px 24px 24px 64px;
   color:#8a8a8a;font:18px/1.5 var(--ui);text-align:center;pointer-events:none}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bench);
-  padding:9px 16px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+  padding:9px 16px;border-radius:20px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.show{opacity:1}
-.err{color:#c0271d;font-size:13px}
-.notice{padding:10px 24px;border-bottom:1px solid var(--rule);font-size:13.5px;display:flex;flex-direction:column;gap:6px}
+.err{color:var(--danger);font-size:12.5px}
+.notice{padding:10px 20px;border-bottom:1px solid var(--hair);font-size:13px;display:flex;flex-direction:column;gap:6px}
 .notice[hidden]{display:none}
 .notice .ok{color:var(--muted)}
-.notice .warn{color:#c0271d;font-weight:500}
+.notice .warn{color:var(--danger);font-weight:500}
 .notice details{color:var(--muted)}
 .notice summary{cursor:pointer}
 /* Removed list: a framed box. Fades at the top/bottom edge appear only when there's more to scroll that way,
    the scrollbar stays visible (macOS normally hides it), and a small chevron sits at the bottom while more is below. */
-.notice .listwrap{position:relative;margin-top:8px;border:1px solid var(--rule);border-radius:8px;background:var(--panel);overflow:hidden}
+.notice .listwrap{position:relative;margin-top:8px;border-radius:10px;background:var(--panel);overflow:hidden}
 .notice ul{margin:0;padding:8px 12px 8px 30px;max-height:180px;overflow-y:scroll;overscroll-behavior:contain;
   scrollbar-width:thin;scrollbar-color:var(--muted) transparent}
 .notice ul::-webkit-scrollbar{width:10px}
@@ -125,7 +191,7 @@ textarea.out[hidden]{display:none}
 @media (max-width:520px){ .bar{padding:12px 16px;gap:6px} .bar .btn{padding:7px 10px;font-size:13px} }
 @media (max-width:860px){
   .app{grid-template-columns:1fr}
-  .side{border-right:0;border-bottom:1px solid var(--rule)}
+  .side{border-right:0;border-bottom:1px solid var(--hair)}
   .glass{min-height:70vh}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -134,17 +200,18 @@ textarea.out[hidden]{display:none}
 <body>
 <div class="app">
   <aside class="side">
-    <div>
-      <h1>Prompter Prep</h1>
-      <p class="lede">Drop a script, get it back broken into readable lines. <span style="opacity:.7">Version 42</span></p>
-    </div>
+    <h1>Prompter Prep</h1>
 
     <div>
       <div class="drop" id="drop" role="button" tabindex="0" aria-label="Drop a script here, or click to choose one">
         <svg class="dropIco" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <strong>Drop a script here</strong>
-        <span>.tp3, .rtf, .txt, .md or .docx</span>
-        <span class="dropClick" id="dropClick">or click to choose a file</span>
+        <div class="dropEmpty">
+          <strong>Drop a script here</strong>
+          <span>.tp3, .rtf, .txt, .md or .docx</span>
+          <span id="dropClick">or click to choose a file</span>
+        </div>
+        <svg class="fileIco" viewBox="0 0 34 40" aria-hidden="true"><path d="M4 1h18l11 11v25a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2z" fill="currentColor" opacity=".14"/><path d="M22 1v9a2 2 0 0 0 2 2h9" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".5"/><path d="M8 20h18M8 25h18M8 30h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <div class="fileMeta"><div class="fileName" id="fileName"></div><span class="fileSub" id="fileSub"></span></div>
       </div>
       <!-- Fallback only: some browsers can't read a .tp3 package picked as a file, so it can be picked as a folder. -->
       <input type="file" id="folder" webkitdirectory directory multiple hidden>
@@ -154,29 +221,34 @@ textarea.out[hidden]{display:none}
       <div class="loaded" id="loaded"></div>
     </div>
 
-    <div>
-      <label class="head" for="src">Or paste text</label>
-      <textarea class="src" id="src" placeholder="Paste the client's script here"></textarea>
+    <textarea class="src" id="src" placeholder="Or paste a script here" aria-label="Or paste a script here"></textarea>
+
+    <div class="group">
+      <div class="groupHead">Formatting</div>
+      <div class="card">
+        <label class="row"><span class="label">Smart line breaks</span><input type="checkbox" class="switch" id="optBreaks" checked></label>
+        <div class="row slider" id="rangeRow">
+          <span class="label">Line length</span>
+          <button type="button" class="link" id="autoLen" hidden>Match document</button>
+          <output class="val" id="lenOut">32</output>
+          <input type="range" id="optLen" min="12" max="60" value="32" aria-label="Line length in characters">
+        </div>
+        <label class="row"><span class="label">One list item per line</span><input type="checkbox" class="switch" id="optLists" checked></label>
+        <label class="row"><span class="label">Cues on their own line</span><input type="checkbox" class="switch" id="optCues"></label>
+      </div>
+      <p class="foot">Lines break at commas, dashes and ellipses; names stay together. Bullet symbols are always removed.</p>
     </div>
 
-    <fieldset>
-      <legend>Formatting</legend>
-      <label class="opt"><input type="checkbox" id="optBreaks" checked>
-        <span>Smart line breaks<small>Breaks long sentences at commas, dashes and phrase starts instead of letting them wrap mid-phrase</small></span></label>
-      <div class="range" id="rangeRow">
-        <span>Line length</span><output id="lenOut">32</output>
-        <input type="range" id="optLen" min="12" max="60" value="32" aria-label="Line length in characters">
-        <button type="button" class="link" id="autoLen" hidden>Match document</button>
+    <div class="group">
+      <div class="groupHead">Remove</div>
+      <div class="card">
+        <label class="row"><span class="label">Stage directions<small>Anything in (parentheses)</small></span><input type="checkbox" class="switch" id="optParens"></label>
+        <label class="row"><span class="label">Page numbers<small>A lone number between blank lines</small></span><input type="checkbox" class="switch" id="optPageNums"></label>
       </div>
-      <label class="opt"><input type="checkbox" id="optLists" checked>
-        <span>One list item per line<small>Bullet symbols are removed; numbers like 1. and 2. are kept</small></span></label>
-      <label class="opt"><input type="checkbox" id="optCues">
-        <span>Put [cues] on their own line</span></label>
-      <label class="opt"><input type="checkbox" id="optPageNums">
-        <span>Remove page numbers<small>Only a line that is just a number, like "3" or "Page 3 of 10", on its own between blank lines</small></span></label>
-      <label class="opt"><input type="checkbox" id="optParens">
-        <span>Remove (stage directions)<small>Deletes everything in parentheses, even when it runs across several lines</small></span></label>
-    </fieldset>
+      <p class="foot">Removed text is never copied or downloaded.</p>
+    </div>
+
+    <div class="version">Version 2.7</div>
   </aside>
 
   <main class="stage">
@@ -188,6 +260,9 @@ textarea.out[hidden]{display:none}
     </div>
     <div class="notice" id="notice" hidden></div>
     <div class="glass">
+      <!-- Colour layer: the textarea's own text is made transparent when speakers are coloured, so this
+           identical copy underneath shows through with the names in colour. It scrolls with the textarea. -->
+      <div class="hl" id="hl" aria-hidden="true"></div>
       <textarea class="out" id="out" spellcheck="false" wrap="off" aria-label="Formatted script, editable"></textarea>
       <div class="out view" id="view" hidden tabindex="0" aria-label="Formatted script with removed text shown in red"></div>
       <div class="empty" id="empty">Your formatted script shows up here. You can edit it before downloading.</div>
@@ -279,12 +354,19 @@ function parseRTF(raw){
   return { text: out, header, fontSize: lastFs ? lastFs / 2 : null };
 }
 
+// Speaker colours, in order of first appearance — bright enough to read on black glass, and none of them red
+// (red is the cue arrow and removed text).
+const SPEAKER_COLORS = ["#FFD60A", "#64D2FF", "#30D158", "#FF9F0A", "#BF5AF2", "#FF7EB6"];
+const speakerColor = (speakers, name) => SPEAKER_COLORS[speakers.indexOf(name) % SPEAKER_COLORS.length];
+// Which speaker a formatted line labels ("Tiffany:" on its own), or null.
+const speakerOf = (line, speakers) => { const m = line.match(/^(.+):$/); return m && speakers.includes(m[1]) ? m[1] : null; };
+
 const DEFAULT_HEADER =
 "{\\rtf1\\ansi\\ansicpg1252\\cocoartf2907\n\\cocoatextscaling0\\cocoaplatform0{\\fonttbl\\f0\\fswiss\\fcharset0 Helvetica;}\n" +
 "{\\colortbl;\\red255\\green255\\blue255;\\red255\\green255\\blue255;}\n{\\*\\expandedcolortbl;;\\cspthree\\c100000\\c100000\\c100000;}\n" +
 "\\pard\\tx560\\tx1120\\tx1680\\tx2240\\tx2800\\tx3360\\tx3920\\tx4480\\tx5040\\tx5600\\tx6160\\tx6720\\sl288\\slmult1\\pardirnatural\\partightenfactor0\n\n\\f0\\fs192 \\cf2 ";
 
-function toRTF(text, header){
+function rtfEscape(text){
   let body = "";
   for (const ch of text) {
     const cp = ch.codePointAt(0);
@@ -301,7 +383,30 @@ function toRTF(text, header){
       body += "\\uc0\\u" + u + " ";
     }
   }
-  return (header || DEFAULT_HEADER) + body + "}";
+  return body;
+}
+
+// speakers (optional): names whose "Name:" label lines get their colour in the document.
+function toRTF(text, header, speakers = []){
+  header = header || DEFAULT_HEADER;
+  if (!speakers.length) return header + rtfEscape(text) + "}";
+  // Add one colour per speaker to the colour table (and Cocoa's expanded table, which must stay the same length).
+  const tbl = header.match(/\{\\colortbl;?([^}]*)\}/);
+  const base = tbl ? (tbl[0].match(/;/g) || []).length : 1;              // index of the first new colour
+  const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+  const entries = speakers.map(n => { const [r, g, b] = rgb(speakerColor(speakers, n)); return `\\red${r}\\green${g}\\blue${b};`; }).join("");
+  if (tbl) header = header.replace(tbl[0], tbl[0].slice(0, -1) + entries + "}");
+  else header = header.replace(/(\{\\fonttbl[^}]*\}\}?)/, `$1{\\colortbl;${entries}}`);
+  header = header.replace(/(\{\\\*\\expandedcolortbl;[^}]*)\}/, (m, g) => g + speakers.map(n => {
+    const c = rgb(speakerColor(speakers, n)).map(v => Math.round(v / 255 * 100000));
+    return `\\csgenericrgb\\c${c[0]}\\c${c[1]}\\c${c[2]};`;
+  }).join("") + "}");
+  const bodyColor = (header.match(/\\cf(\d+)\s*$/) || header.match(/\\cf(\d+)(?!.*\\cf\d)/s) || [, "0"])[1];
+  const lines = text.split("\n").map(line => {
+    const who = speakerOf(line, speakers);
+    return who ? `\\cf${base + speakers.indexOf(who)} ${rtfEscape(line)}\\cf${bodyColor} ` : rtfEscape(line);
+  });
+  return header + lines.join("\\\n") + "}";
 }
 
 /* ============================================================
@@ -328,7 +433,6 @@ function isSentenceEnd(w, next){
   const starter = STARTERS.has(bare(next));
   if (/(…|\.\.)$/.test(core)) return false;                    // "…" / "..." → new line, not a blank line
   if (/^[a-z]/.test(nextBare)) {                               // "comps. women's..." — still a full stop
-    if (/…$|\.\.$/.test(core)) return false;                    // "wait… what"
     if (ABBR.has(lw) || lw === "etc.") return false;
     if (/^([a-z]\.)+$/i.test(lw)) return false;                  // e.g. a.m. U.S. initials
     return true;
@@ -411,6 +515,8 @@ function smartBreak(sentence, limit){
     inside[k] = d > 0 || q > 0;
   });
   const glue = nameGlue(words);
+  // Cost of breaking after word k depends only on k, so work it out once instead of inside the search.
+  const pen = words.map((_, k) => k < n - 1 ? breakPenalty(words, k, inside) + (glue[k] ? 1000 : 0) : 0);
   const best = new Array(n + 1).fill(Infinity), from = new Array(n + 1).fill(0);
   best[0] = 0;
   for (let j = 1; j <= n; j++) {
@@ -423,8 +529,7 @@ function smartBreak(sentence, limit){
       let cost = 5;
       if (!last) {
         const slack = Math.max(0, (limit - width) / limit);
-        cost += slack * slack * 60 + (slack > 0.62 ? 30 : 0) + breakPenalty(words, j - 1, inside);
-        if (glue[j - 1]) cost += 1000;                        // splitting a name: only if nothing else fits
+        cost += slack * slack * 60 + (slack > 0.62 ? 30 : 0) + pen[j - 1];   // pen includes +1000 for splitting a name
       } else {
         if (count === 1 && n > 3) cost += 60;
         else if (count === 2 && n > 6) cost += 15;
@@ -481,6 +586,12 @@ function cleanText(text){
   return text;
 }
 
+// Removal markers: \u0002<id>\u0003 where something was taken out ("g" = a page-break gap was closed there).
+const MARK = /\u0002\d+g?\u0003/g;
+const ENDS_THOUGHT = /[.!?:;…]["”’)\]]*$/;                   // a line that finishes a sentence or clause
+const isNumberLine = s => /^[\d.,:%$ -]+$/.test(s);            // "3" / "2" / "1" countdowns keep their own lines
+const isHeading = s => /[A-Z]/.test(s) && s === s.toUpperCase();   // ALL-CAPS headings stay on their own line
+
 // ---- Stage 2: removals the person switched on. Each one is counted so the app can report exactly what went.
 function stripParens(text, report){
   // Matched (…) pairs only. A span never crosses a blank line or runs past 800 characters, and a ")" that is
@@ -510,15 +621,24 @@ function stripParens(text, report){
 
 function stripPageNumbers(text, report){
   // Only a line that is nothing but a page number AND has a blank line (or the start/end) on both sides.
-  const lines = text.split("\n");
-  return lines.map((l, k) => {
+  // If the sentence was cut by the page break ("…into how she" / 4 / "shops or lives…"), the gap closes too.
+  const lines = text.split("\n"), out = [];
+  const unfinished = s => s && !ENDS_THOUGHT.test(s.replace(MARK, "").trim()) && !isHeading(s);
+  for (let k = 0; k < lines.length; k++) {
+    const l = lines[k];
     const isNum = /^[ \t]*(page[ \t]*)?\d{1,3}([ \t]*(of|\/)[ \t]*\d{1,3})?[ \t]*$/i.test(l);
     const blankAbove = k === 0 || !lines[k - 1].trim(), blankBelow = k === lines.length - 1 || !lines[k + 1].trim();
-    if (!(isNum && blankAbove && blankBelow)) return l;
+    if (!(isNum && blankAbove && blankBelow)) { out.push(l); continue; }
     const mark = "\u0002" + report.removed.length + "\u0003";
     report.removed.push(l.trim());
-    return mark;
-  }).join("\n");
+    let p = out.length - 1; while (p >= 0 && !out[p].trim()) p--;
+    let n = k + 1; while (n < lines.length && !lines[n].trim()) n++;
+    if (p >= 0 && n < lines.length && unfinished(out[p])) {
+      out.length = p + 1; out[p] += mark.replace("\u0003", "g\u0003");   // "g": the page break closed a gap here
+      k = n - 1;
+    } else out.push(mark);
+  }
+  return out.join("\n");
 }
 
 function applyRemovals(text, opt, report){
@@ -527,34 +647,72 @@ function applyRemovals(text, opt, report){
   if (!report.removed.length) return text;
   // Note where each removal sat — "after the Nth word", and whether it had a line to itself — so the preview
   // can show it in red later. Words are never renumbered by formatting, so this position stays valid.
+  // "“(whispering) hello”" → "“hello”": no stray space left just inside an opening quote or bracket.
+  text = text.replace(/([“"‘'(\[])(\u0002\d+g?\u0003)[ \t]+/g, "$1$2");
   report.marks = [];
   let words = 0;
-  for (const m of text.matchAll(/[\p{L}\p{N}]+|\u0002(\d+)\u0003/gu)) {
+  for (const m of text.matchAll(/[\p{L}\p{N}]+|\u0002(\d+)(g?)\u0003/gu)) {
     if (m[1] === undefined) { words++; continue; }
     const ls = text.lastIndexOf("\n", m.index) + 1, le = text.indexOf("\n", m.index);
     const line = text.slice(ls, le < 0 ? text.length : le);
-    report.marks.push({ id: +m[1], after: words, ownLine: !line.replace(/\u0002\d+\u0003/g, "").trim() });
+    const before = text.slice(ls, m.index).replace(MARK, "");
+    report.marks.push({ id: +m[1], after: words, gap: m[2] === "g", ownLine: !line.replace(MARK, "").trim(),
+                        lineStart: !before.trim() });                       // "(Smiling) Yes!" — sat before the words
   }
-  return text.replace(/\u0002\d+\u0003/g, "")
+  return text.replace(MARK, "")
              .replace(/[ \t]+([.,!?;:…])/g, "$1")          // "excited (laughs)." → "excited."
              .replace(/[ \t]{2,}/g, " ").replace(/^[ \t]+|[ \t]+$/gm, "");
 }
 
 // Rebuild the formatted text with the removed pieces put back, for the "Show removed" view only.
 function withRemoved(out, report){
-  const ends = [...out.matchAll(/[\p{L}\p{N}]+/gu)].map(m => m.index + m[0].length);
+  const found = [...out.matchAll(/[\p{L}\p{N}]+/gu)];
+  const ends = found.map(m => m.index + m[0].length), starts = found.map(m => m.index);
   const ins = (report.marks || []).map(m => {
     const text = report.removed[m.id].replace(/\s+/g, " ").trim();
     if (m.after === 0) return { pos: 0, id: m.id, text, pre: "", post: m.ownLine ? "\n" : " " };
     let pos = ends[Math.min(m.after, ends.length) - 1] ?? out.length;
     if (m.ownLine) { const nl = out.indexOf("\n", pos); pos = nl < 0 ? out.length : nl; return { pos, id: m.id, text, pre: "\n", post: "" }; }
+    // Removed from the start of a line ("(Smiling) Yes! I got…"): put it back in front of the next word, on that
+    // word's line, so it reads the way the original did.
+    if (m.lineStart && !m.gap && m.after < starts.length) {
+      let at = starts[m.after];
+      while (at > 0 && !/\s/.test(out[at - 1])) at--;        // before any opening quote or bracket
+      return { pos: at, id: m.id, text, pre: "", post: " " };
+    }
     while (pos < out.length && !/\s/.test(out[pos])) pos++;   // after the word's punctuation: "Cool. (laughs)"
+    // A page number from a closed page-break gap: show it apart, on its own line with space around it,
+    // as it was in the original ("…how she" / 4 / "shops…"), taking the place of the space or line break there.
+    if (m.gap) return { pos, id: m.id, text, pre: "\n\n", post: "\n\n", skip: /\s/.test(out[pos] || "") ? 1 : 0 };
     return { pos, id: m.id, text, pre: " ", post: "" };
   }).sort((a, b) => a.pos - b.pos || a.id - b.id);
   const parts = []; let at = 0;
-  for (const x of ins) { parts.push({ t: out.slice(at, x.pos) }, { t: x.pre }, { t: x.text, removed: true }, { t: x.post }); at = x.pos; }
+  for (const x of ins) { parts.push({ t: out.slice(at, x.pos) }, { t: x.pre }, { t: x.text, removed: true }, { t: x.post }); at = x.pos + (x.skip || 0); }
   parts.push({ t: out.slice(at) });
   return parts;
+}
+
+const INLINE_BULLETS = /[ ]+([•●◦‣➢➤►])[ ]+/g;
+const LEAD_BULLET = /^\s*(?:[•●◦‣·○➢➤►]|[-–](?!\s*\d))\s+/;   // removed from list items (numbers are kept)
+
+// Speakers: "Tiffany:" on its own line, or "Tiffany: Excuse me…" at the start of a line. A name only counts as a
+// speaker when it's used at least twice, so one-off lines like "Key points:" or "Note: …" aren't mistaken for one.
+const SPEAKER_LINE = /^([\p{Lu}][\p{L}\p{M}’'.\-]*(?: [\p{L}\p{M}’'.\-]+){0,3}):$/u;
+const SPEAKER_INLINE = /^([\p{Lu}][\p{L}\p{M}’'.\-]*(?: [\p{L}\p{M}’'.\-]+){0,3}):\s+(\S.*)$/u;
+// Once the script clearly has speakers, a name used only once still counts if it's on a line of its own
+// (and isn't introducing a list), or if it's in ALL CAPS like "ASSOCIATE: Let me check."
+function findSpeakers(lines){
+  const count = new Map(), once = [];
+  lines.forEach((l, k) => {
+    const own = l.match(SPEAKER_LINE), m = own || l.match(SPEAKER_INLINE);
+    if (!m || /^\d/.test(m[1])) return;
+    count.set(m[1], (count.get(m[1]) || 0) + 1);
+    let n = k + 1; while (n < lines.length && !lines[n]) n++;
+    const beforeList = n < lines.length && (BULLET_RE.test(lines[n]) || /^[\u0001•●◦]/.test(lines[n]));
+    if ((own && !beforeList) || m[1] === m[1].toUpperCase()) once.push(m[1]);
+  });
+  const sure = [...count].filter(([, c]) => c >= 2).map(([n]) => n);
+  return new Set(sure.length ? sure.concat(once) : []);
 }
 
 function toUnits(text, opt, report = { removed: [], bullets: [], marks: [] }){
@@ -565,13 +723,26 @@ function toUnits(text, opt, report = { removed: [], bullets: [], marks: [] }){
              .split("\n").map(l => (l.match(SQ_INLINE) || []).length >= 2 ? l.replace(SQ_INLINE, "\n\u0001 ") : l).join("\n")
              .replace(SQ_ANY, "");
   text = text.replace(/[ \t]*\t[ \t]*/g, " ").replace(/[ ]{2,}/g, " ");
-  if (opt.lists) text = text.split("\n").map(l => (l.match(/[ ]+[•●◦‣➢➤►][ ]+/g) || []).length >= 2
-    ? l.replace(/[ ]+([•●◦‣➢➤►])[ ]+/g, "\n$1 ") : l).join("\n");   // inline bullets (2+ on a line)
-  const lines = text.split("\n").map(s => s.trim());
+  if (opt.lists) text = text.split("\n").map(l => (l.match(INLINE_BULLETS) || []).length >= 2
+    ? l.replace(INLINE_BULLETS, "\n$1 ") : l).join("\n");   // inline bullets (2+ on a line)
+  let lines = text.split("\n").map(s => s.trim());
+  const speakers = findSpeakers(lines);
+  report.speakers = [...speakers];
+  if (speakers.size) {                              // "Tiffany: Excuse me…" → "Tiffany:" + "Excuse me…"
+    lines = lines.flatMap(l => { const m = l.match(SPEAKER_INLINE); return m && speakers.has(m[1]) ? [m[1] + ":", m[2]] : [l]; });
+  }
   const units = []; let buf = null;
   const flush = () => { if (buf) { units.push(buf); buf = null; } };
-  for (const line of lines) {
-    if (!line || line === "\u0001") { flush(); continue; }
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
+    const sp = line.match(SPEAKER_LINE);
+    if (sp && speakers.has(sp[1])) { flush(); units.push({ type: "speaker", text: line }); continue; }
+    if (!line || line === "\u0001") {
+      // A blank gap in the middle of a sentence (page break): "…into how she" / "" / "shops or lives…"
+      let n = li + 1; while (n < lines.length && !lines[n]) n++;
+      if (buf && buf.type === "para" && !ENDS_THOUGHT.test(buf.text) && n < lines.length && /^[a-z]/.test(lines[n])) continue;
+      flush(); continue;
+    }
     if (line[0] === "\u0001") {
       flush();
       buf = { type: opt.lists ? "item" : "para", text: line.slice(1).trim() };
@@ -585,11 +756,10 @@ function toUnits(text, opt, report = { removed: [], bullets: [], marks: [] }){
     if (buf) {
       // A line that doesn't end a sentence continues on the next line (hard-wrapped
       // PDFs, or a script that was already broken into lines). ALL-CAPS headings stay put.
-      const prevEnds = /[.!?:;]["”’]?$/.test(buf.text);
-      const heading = /[A-Z]/.test(buf.text) && buf.text === buf.text.toUpperCase();
       // After a list item, only a lowercase line is a wrapped continuation of that item.
-      const numberLine = s => /^[\d.,:%$ -]+$/.test(s);      // "3" / "2" / "1" countdowns keep their own lines
-      const hardWrap = !prevEnds && !heading && !numberLine(buf.text) && !numberLine(line) && (buf.type !== "item" || /^[a-z]/.test(line));
+      const prevEnds = /[.!?:;]["”’]?$/.test(buf.text);
+      const hardWrap = !prevEnds && !isHeading(buf.text) && !isNumberLine(buf.text) && !isNumberLine(line) &&
+                       (buf.type !== "item" || /^[a-z]/.test(line));
       if (hardWrap) { buf.text += (/[a-z]-$/i.test(buf.text) && /^[a-z]/.test(line) ? "" : " ") + line; continue; }
       flush();
     }
@@ -608,66 +778,58 @@ function toUnits(text, opt, report = { removed: [], bullets: [], marks: [] }){
   return units;
 }
 
-function formatScript(text, opt, report = { removed: [], bullets: [], marks: [] }){
+// Every script gets: a blank line after each sentence, a new line after each comma, ellipsis and dash,
+// one list item per line (if on), and smart phrase-level wrapping of long stretches (if on).
+function formatScript(text, opt, report = { removed: [], bullets: [], marks: [], speakers: [] }){
   const limit = opt.len * AVG;
-  const units = toUnits(text, opt, report);
   const wrap = s => opt.breaks ? smartBreak(s, limit).join("\n") : s;
-  // Every comma ends the line (no blank line). Commas inside [cues] / (asides) and in numbers like 1,000 are left alone.
-  // Every comma, ellipsis and dash ends the line (no blank line). Left alone: [cues] / (asides), 1,000,
-  // number ranges like 2024–2026, and a minus sign ("- 5 degrees").
-  const breakText = s => {
-    if (!opt.commas) return wrap(s);
-    // Split an unspaced dash off its word ("phone—screen" → "phone—" + "screen"); glue marks where no space was.
-    const words = [], glue = [];
-    for (const w of s.split(" ").filter(Boolean)) {
-      let start = 0;
-      for (let i = 1; i < w.length - 1; i++) {
-        if ((w[i] === "—" || w[i] === "–") && !/[—–]/.test(w[i + 1]) && !(/\d/.test(w[i - 1]) && /\d/.test(w[i + 1]))) {
-          words.push(w.slice(start, i + 1)); glue.push(start > 0); start = i + 1;
-        }
-      }
-      words.push(w.slice(start)); glue.push(start > 0);
-    }
-    const inside = protectedRanges(words), parts = []; let cur = [];
-    const endsLine = (w, next) =>
-      /(,|…|\.\.\.)["'”’)\]]*$/.test(w) ||                       // comma, ellipsis
-      /[—–]["'”’)\]]*$/.test(w) ||                               // em / en dash, spaced or not
-      (w === "-" && !/^\d/.test(next));                           // spaced hyphen used as a dash, not a minus
-    const join = list => list.map((x, i) => (i && !x.g ? " " : "") + x.w).join("");
-    words.forEach((w, k) => {
-      cur.push({ w, g: glue[k] });
-      if (!inside[k] && k < words.length - 1 && endsLine(w, words[k + 1])) { parts.push(join(cur)); cur = []; }
-    });
-    if (cur.length) parts.push(join(cur));
-    return parts.map(wrap).join("\n");
-  };
   let out = "", prev = null;
-  for (const u of units) {
-    let block;
-    if (u.type === "item") {
-      let t = u.text;
-      t = t.replace(/^\s*(?:[•●◦‣·○➢➤►]|[-–](?!\s*\d))\s+/, "");
-      block = (opt.sentences ? splitSentences(t) : [t]).map(breakText).join("\n\n");
-    } else if (u.type === "cue") {
-      block = u.text;
-    } else {
-      const sentences = opt.sentences ? splitSentences(u.text) : [u.text];
-      block = sentences.map(breakText).join(opt.sentences ? "\n\n" : " ");
-      if (!opt.sentences && opt.breaks) block = breakText(u.text);
-    }
+  for (const u of toUnits(text, opt, report)) {
+    const block = u.type === "cue" || u.type === "speaker" ? u.text
+      : splitSentences(u.type === "item" ? u.text.replace(LEAD_BULLET, "") : u.text)
+          .map(s => clauses(s).map(wrap).join("\n")).join("\n\n");
     // Consecutive list items share a single line break, unless the item ended a sentence —
     // every full stop gets a blank line after it.
     const tight = prev === "item" && u.type === "item" && !/[.!?…]["”’)\]]?$/.test(out);
-    if (out) out += tight ? "\n" : "\n\n";
+    if (out) out += tight || prev === "speaker" ? "\n" : "\n\n";   // "Tiffany:" sits right above her line
     out += block; prev = u.type;
   }
   return out;
+}
+
+// Split a sentence into clauses: each comma, ellipsis and dash ends a line. Left alone: [cues] / (asides),
+// 1,000, number ranges like 2024–2026, and a minus sign ("- 5 degrees").
+function clauses(s){
+  // Split an unspaced dash off its word ("phone—screen" → "phone—" + "screen"); glue marks where no space was.
+  const words = [], glue = [];
+  for (const w of s.split(" ").filter(Boolean)) {
+    let start = 0;
+    for (let i = 1; i < w.length - 1; i++) {
+      if ((w[i] === "—" || w[i] === "–") && !/[—–]/.test(w[i + 1]) && !(/\d/.test(w[i - 1]) && /\d/.test(w[i + 1]))) {
+        words.push(w.slice(start, i + 1)); glue.push(start > 0); start = i + 1;
+      }
+    }
+    words.push(w.slice(start)); glue.push(start > 0);
+  }
+  const endsLine = (w, next) =>
+    /(,|…|\.\.\.)["'”’)\]]*$/.test(w) ||                         // comma, ellipsis
+    /[—–]["'”’)\]]*$/.test(w) ||                                 // em / en dash, spaced or not
+    (w === "-" && !/^\d/.test(next));                             // spaced hyphen used as a dash, not a minus
+  const join = list => list.map((x, i) => (i && !x.g ? " " : "") + x.w).join("");
+  const inside = protectedRanges(words), parts = []; let cur = [];
+  words.forEach((w, k) => {
+    cur.push({ w, g: glue[k] });
+    if (!inside[k] && k < words.length - 1 && endsLine(w, words[k + 1])) { parts.push(join(cur)); cur = []; }
+  });
+  if (cur.length) parts.push(join(cur));
+  return parts;
 }
 
 /* ============================================================
    UI
    ============================================================ */
 const $ = id => document.getElementById(id);
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const state = { source: "", header: null, name: "script", pkg: null, docLen: null };
 // pkg = { name, isFolder, files: [{path, data(ArrayBuffer|string)}], rtfPath }
 
@@ -677,7 +839,7 @@ const store = {
 };
 const optIds = { breaks:"optBreaks", lists:"optLists", cues:"optCues", parens:"optParens", pageNums:"optPageNums" };
 function readOpts(){
-  const o = { len: +$("optLen").value, sentences: true, commas: true };   // always: blank line after every sentence, new line after every comma or …
+  const o = { len: +$("optLen").value };
   for (const [k, id] of Object.entries(optIds)) o[k] = $(id).checked;
   return o;
 }
@@ -689,16 +851,39 @@ function applyStored(){
 
 function render(){
   const opt = readOpts();
-  store.set({ ...opt });
+  store.set(opt);
   $("lenOut").textContent = opt.len;
-  $("rangeRow").style.opacity = opt.breaks ? 1 : .45;
+  $("rangeRow").classList.toggle("off", !opt.breaks);
+  $("optLen").style.setProperty("--p", ((opt.len - 12) / 48 * 100) + "%");     // filled part of the slider track
+  $("autoLen").hidden = !state.docLen || opt.len === state.docLen;
   const src = state.source.trim();
-  const report = { removed: [], bullets: [] };
+  const report = { removed: [], bullets: [], marks: [], speakers: [] };
   $("out").value = src ? formatScript(src, opt, report) : "";
   state.report = report;
+  state.speakers = report.speakers || [];
   showNotice(src, report);
-  layoutPreview(); updateStats(); updateRemovedView();
+  layoutPreview(); updateStats(); updateRemovedView(); paintSpeakers();
 }
+
+/* ---------- speaker colours in the preview ---------- */
+// Escaped HTML for some formatted text, with each "Name:" label line in that speaker's colour.
+function tintHTML(text){
+  const sp = state.speakers || [];
+  if (!sp.length) return esc(text);
+  return text.split("\n").map(line => {
+    const who = speakerOf(line, sp);
+    return who ? `<span class="spk" style="color:${speakerColor(sp, who)}">${esc(line)}</span>` : esc(line);
+  }).join("\n");
+}
+function paintSpeakers(){
+  const on = !!(state.speakers && state.speakers.length) && !!$("out").value;
+  $("out").parentElement.classList.toggle("tinted", on);
+  const hl = $("hl"); hl.hidden = !on || !$("view").hidden;
+  if (!on) { hl.textContent = ""; return; }
+  hl.innerHTML = tintHTML($("out").value) + "\n ";
+  syncHL();
+}
+const syncHL = () => { const o = $("out"), hl = $("hl"); hl.scrollTop = o.scrollTop; hl.scrollLeft = o.scrollLeft; };
 
 /* ---------- "Show removed": red preview only; copy/download always use the clean text ---------- */
 state.showRemoved = false;
@@ -708,14 +893,14 @@ function updateRemovedView(){
   const on = has && state.showRemoved;
   if (on) {
     view.innerHTML = withRemoved(out.value, r)
-      .map(p => p.removed ? `<span class="removed">${esc(p.t)}</span>` : esc(p.t)).join("");
+      .map(p => p.removed ? `<span class="removed">${esc(p.t)}</span>` : tintHTML(p.t)).join("");
     view.style.setProperty("--pfs", out.style.getPropertyValue("--pfs"));
     view.style.paddingLeft = out.style.paddingLeft; view.style.paddingRight = out.style.paddingRight;
   }
   if (on !== !view.hidden) {                  // switching: keep roughly the same place in the script
     const from = on ? out : view, to = on ? view : out;
     const ratio = from.scrollTop / Math.max(1, from.scrollHeight - from.clientHeight);
-    view.hidden = !on; out.hidden = on;
+    view.hidden = !on; out.hidden = on; $("hl").hidden = on || !$("out").parentElement.classList.contains("tinted");
     to.scrollTop = ratio * (to.scrollHeight - to.clientHeight);
   }
 }
@@ -784,6 +969,8 @@ function layoutPreview(){
   out.style.setProperty("--pfs", pfs + "px");
   const side = Math.max(24, Math.floor((out.parentElement.clientWidth - w) / 2));   // works while hidden too
   out.style.paddingLeft = side + "px"; out.style.paddingRight = side + "px";
+  const hl = $("hl");
+  hl.style.setProperty("--pfs", pfs + "px"); hl.style.paddingLeft = out.style.paddingLeft; hl.style.paddingRight = out.style.paddingRight;
   $("empty").hidden = !!out.value;
 }
 
@@ -799,14 +986,21 @@ function updateStats(){
 
 function toast(msg){ const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 1800); }
 function setLoaded(html, isErr){ $("loaded").innerHTML = isErr ? `<span class="err">${html}</span>` : html; }
-const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// Loaded file shows inside the drop zone as a file row; pass null to go back to the empty drop zone.
+function showFile(name){
+  const d = $("drop");
+  d.classList.toggle("has", !!name);
+  $("fileName").textContent = name || "";
+  $("fileSub").textContent = name ? "Click or drop to replace" : "";
+  d.setAttribute("aria-label", name ? `Loaded ${name}. Click or drop to replace` : "Drop a script here, or click to choose one");
+}
 
 function setSource(text, meta = {}){
   state.source = text; state.header = meta.header || null; state.name = meta.name || "script";
   state.pkg = meta.pkg || null; state.docLen = meta.docLen || null;
   $("src").value = text.trim();
   $("autoLen").hidden = !state.docLen;
-  if (state.docLen) { $("optLen").value = state.docLen; $("autoLen").textContent = `Match document (${state.docLen})`; }
+  if (state.docLen) { $("optLen").value = state.docLen; $("autoLen").textContent = `Match document`; }
   render();
 }
 
@@ -870,7 +1064,7 @@ async function handleFileSet(entries, pkgName, isFolder){
   for (const e of entries) files.push({ path: e.path, data: e === rtf ? null : await readBuf(e.file) });
   setSource(parsed.text, { header: parsed.header, name: stem(pkgName), docLen,
     pkg: { name: pkgName, isFolder, files, rtfPath: rtf.path } });
-  setLoaded(`Loaded <b>${esc(pkgName)}</b>, ${entries.length} files. The script text is replaced; everything else is kept as is.`);
+  showFile(pkgName); setLoaded("");
 }
 
 async function handleZip(file){
@@ -903,7 +1097,7 @@ async function handleSingle(file){
     if (String.fromCharCode(...head).startsWith("{\\rtf")) {           // an .rtf saved with the wrong extension
       const p = parseRTF(await readRTF(file));
       setSource(p.text, { header: p.header, name: stem(file.name) });
-      return setLoaded(`Loaded <b>${esc(file.name)}</b>`);
+      showFile(file.name); return setLoaded("");
     }
     // A .tp3 is a folder-style package. Safari on a Mac zips it automatically (handled above). Other browsers
     // hand over an empty file: on a Mac, offer the folder picker; on iPhone, folders can't be picked at all.
@@ -928,7 +1122,7 @@ async function handleSingle(file){
   } else if (/^(jpe?g|png|heic|heif|gif|webp|mov|mp4|m4v)$/.test(ext) || /^(image|video)\//.test(file.type)) {
     throw new Error("That's a photo or video. Tap the box again, choose Browse, and pick your .tp3 or script.");
   } else throw new Error(`Can't read .${ext} files. Use .tp3, .rtf, .txt, .md or .docx.`);
-  setLoaded(`Loaded <b>${esc(file.name)}</b>`);
+  showFile(file.name); setLoaded("");
 }
 
 async function handleFiles(list){
@@ -998,8 +1192,9 @@ function download(blob, name){
 }
 // The one source for everything that leaves the app: the clean formatted text (never the red preview),
 // with any stray control characters (they show as ? boxes in other apps) stripped out.
-const cleanOutput = () => $("out").value.replace(/[\u0000-\u0008\u000B-\u001F\u007F\u0080-\u009F\uFFFE\uFFFF]/g, "").replace(/\s+$/, "");
-const currentRTF = () => toRTF(cleanOutput(), state.header);
+const CONTROL_CHARS = /[\u0000-\u0008\u000B-\u001F\u007F\u0080-\u009F\uFFFE\uFFFF]/g;
+const cleanOutput = () => $("out").value.replace(CONTROL_CHARS, "").replace(/\s+$/, "");
+const currentRTF = () => toRTF(cleanOutput(), state.header, state.speakers || []);
 
 $("dlRtf").onclick = () => download(new Blob([currentRTF()], { type: "application/rtf" }), `${state.name} (formatted).rtf`);
 $("copy").onclick = async () => {
@@ -1027,34 +1222,31 @@ $("view").addEventListener("copy", e => {
   const box = document.createElement("div"); box.appendChild(sel.getRangeAt(0).cloneContents());
   box.querySelectorAll(".removed").forEach(x => x.remove());
   const text = box.textContent.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/^[ \t]+/gm, "").trim()
-    .replace(/[\u0000-\u0008\u000B-\u001F\u007F\u0080-\u009F\uFFFE\uFFFF]/g, "");
+    .replace(CONTROL_CHARS, "");
   e.clipboardData.setData("text/plain", text); e.preventDefault();
 });
 $("dlPkg").onclick = guard(async () => {
   const p = state.pkg; if (!p) return;
-  const folder = p.isFolder === true;
-  const zip = new JSZip(), root = folder ? zip.folder(p.name) : zip;
+  // A .tp3 is a folder, and browsers can't download folders, so it goes out as Name.tp3.zip (unzips to the package).
+  const zip = new JSZip(), root = p.isFolder ? zip.folder(p.name) : zip;
   for (const f of p.files) root.file(f.path, f.path === p.rtfPath ? currentRTF() : f.data);
   const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", mimeType: "application/zip" });
-  if (p.isFolder === "zip") { download(blob, p.name); toast("Downloaded " + p.name); }
-  else if (folder) { download(blob, p.name + ".zip"); toast("Downloaded. Double-click the .zip to get the .tp3 back"); }
+  if (p.isFolder) { download(blob, p.name + ".zip"); toast("Downloaded. Double-click the .zip to get the .tp3 back"); }
   else { download(blob, "formatted-script.zip"); toast("Downloaded"); }
 });
 
 /* ---------- wiring ---------- */
-const drop = $("drop");
-// iPhone/iPad can't pick folders, so there the .tp3 goes through the normal file picker (as a compressed .zip).
+// iPhone/iPad can't pick folders, so there a .tp3 goes through the normal picker (as a compressed .zip).
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-// Firefox on a Mac shows a .tp3 as a folder in the normal picker, so there the button opens the folder picker,
-// which selects the .tp3 directly. (isFirefoxMac is defined just below; this runs on click.)
-// The whole drop box is the picker: click it, or focus it and press Enter / Space.
-const openPicker = () => (isFirefoxMac ? $("folder") : $("file")).click();
-$("drop").addEventListener("click", openPicker);
-$("drop").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPicker(); } });
-// Firefox on a Mac shows a .tp3 as a folder in its picker. Selecting everything inside it (⌘A) is detected
-// automatically below and rebuilt as a .tp3, so no separate button is needed.
+// Firefox on a Mac shows a .tp3 as a folder in the normal picker, so there the drop box opens the folder picker.
 const isFirefoxMac = /Firefox\//.test(navigator.userAgent) && /Mac/.test(navigator.platform) && !isIOS;
-if (isFirefoxMac) $("dropClick").textContent = "or click to choose the folder";   // it opens the folder picker there
+if (isFirefoxMac) $("dropClick").textContent = "or click to choose the folder";
+
+// The whole drop box is the picker: click it, or focus it and press Enter / Space.
+const drop = $("drop");
+const openPicker = () => (isFirefoxMac ? $("folder") : $("file")).click();
+drop.addEventListener("click", openPicker);
+drop.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPicker(); } });
 // The fallback link in the error message opens the folder picker.
 $("loaded").addEventListener("click", e => { if (e.target.id === "asFolder") $("folder").click(); });
 $("folder").onchange = guard(async e => {
@@ -1084,19 +1276,20 @@ $("src").addEventListener("input", () => {
   pasteTimer = setTimeout(() => {
     const keepPkg = state.pkg;  // editing the source keeps the loaded document for download
     state.source = $("src").value;
-    if (!keepPkg && !state.header) setLoaded("");
+    if (!keepPkg && !state.header) { setLoaded(""); showFile(null); }
     render();
   }, 150);
 });
 Object.values(optIds).forEach(id => $(id).addEventListener("change", render));
 $("optLen").addEventListener("input", render);
 $("autoLen").onclick = () => { $("optLen").value = state.docLen; render(); };
+$("out").addEventListener("scroll", syncHL);
 $("out").addEventListener("input", () => {
-  layoutPreview(); updateStats();
+  layoutPreview(); updateStats(); paintSpeakers();
   const ok = document.querySelector("#notice .ok");
   if (ok) ok.textContent = "Edited by hand. The word check doesn't cover your edits.";
 });
-window.addEventListener("resize", () => { layoutPreview(); updateRemovedView(); });
+window.addEventListener("resize", () => { layoutPreview(); updateRemovedView(); syncHL(); });
 
 applyStored(); render();
 </script>
