@@ -133,7 +133,7 @@ textarea.out[hidden]{display:none}
   <aside class="side">
     <div>
       <h1>Prompter Prep</h1>
-      <p class="lede">Drop a script, get it back broken into readable lines. <span style="opacity:.7">Version 35</span></p>
+      <p class="lede">Drop a script, get it back broken into readable lines. <span style="opacity:.7">Version 36</span></p>
     </div>
 
     <div>
@@ -913,9 +913,17 @@ async function handleSingle(file){
 async function handleFiles(list){
   const files = Array.from(list);
   if (!files.length) return;
-  // Firefox on a Mac: one file picked from inside a .tp3 — point to selecting the whole contents.
-  if (files.length === 1 && /^(master\.json|overlay\.png|TXT\.rtf)$/i.test(files[0].name) && isFirefoxMac) {
-    throw new Error("That's one file from inside a .tp3. Open the .tp3 in the picker, press ⌘A to select everything in it, then choose.");
+  // One file from inside a .tp3 (Firefox on a Mac opens the package like a folder). Offer the folder picker,
+  // which selects the .tp3 itself and keeps its name. The link is a fresh click, so the browser allows the picker.
+  if (files.length === 1 && /^(master\.json|overlay\.png|TXT\.rtf)$/i.test(files[0].name)) {
+    const link = `<button type="button" class="link" id="asFolder" style="color:inherit;font-size:inherit">choose the .tp3 itself</button>`;
+    if (/^TXT\.rtf$/i.test(files[0].name)) {
+      await handleSingle(files[0]);
+      setLoaded(`Loaded the script from inside a .tp3. To get a .tp3 back, ${link}.`);
+      return;
+    }
+    setLoaded(`<span class="err">That's a file from inside a .tp3. Please ${link}.</span>`);
+    return;
   }
   if (files.length > 1 || files.some(f => /master\.json$/i.test(f.name))) {
     const hasRtf = files.some(f => extOf(f.name) === "rtf");
