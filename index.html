@@ -39,6 +39,8 @@ h1{font-size:22px;font-weight:600;margin:0;letter-spacing:-.01em}
 .drop.over{border-color:var(--cue);background:color-mix(in srgb,var(--cue) 6%,var(--panel))}
 .drop strong{display:block;font-weight:600}
 .drop span{color:var(--muted);font-size:13px}
+.picks{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.picks .btn{font-size:13px;padding:6px 12px}
 .loaded{font-size:13px;color:var(--muted);margin-top:8px;min-height:1.2em}
 .loaded b{color:var(--ink);font-weight:500}
 
@@ -56,8 +58,11 @@ legend{font-weight:600;font-size:14px;margin-bottom:8px;padding:0}
 .link{background:none;border:0;padding:0;color:var(--muted);text-decoration:underline;cursor:pointer;font-size:12.5px;justify-self:start}
 
 .stage{display:flex;flex-direction:column;min-width:0}
-.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:16px 24px;border-bottom:1px solid var(--rule)}
-.stats{color:var(--muted);font-size:13px;margin-right:auto;font-variant-numeric:tabular-nums}
+.bar{display:flex;flex-wrap:nowrap;gap:8px;align-items:center;padding:14px 24px;border-bottom:1px solid var(--rule);min-width:0}
+.bar .btn{white-space:nowrap;flex:none;display:inline-flex;align-items:center;gap:6px}
+.bar .btn[hidden]{display:none}
+.ico{width:15px;height:15px;flex:none}
+.stats{color:var(--muted);font-size:13px;margin-right:auto;font-variant-numeric:tabular-nums;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .btn{border:1px solid var(--rule);background:var(--panel);border-radius:7px;padding:8px 14px;cursor:pointer;font-weight:500;font-size:14px}
 .btn:hover:not(:disabled){border-color:var(--muted)}
 .btn:disabled{opacity:.45;cursor:default}
@@ -70,10 +75,16 @@ textarea.out{position:absolute;inset:0;width:100%;height:100%;margin:0;backgroun
   font-family:var(--prompt);font-size:var(--pfs,34px);line-height:1.2;white-space:pre;overflow:auto;
   overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:40vh 24px 50vh}
 textarea.out:focus-visible{outline:none}
+.view{position:absolute;inset:0;overflow:auto;overscroll-behavior:contain;color:var(--glass-text);font-family:var(--prompt);
+  font-size:var(--pfs,34px);line-height:1.2;white-space:pre-wrap;padding:40vh 24px 50vh;cursor:default}
+.view[hidden]{display:none}
+.view:focus-visible{outline:none}
+.view .removed{color:#FF5A4E;-webkit-user-select:none;user-select:none}
 .empty[hidden]{display:none}
+textarea.out[hidden]{display:none}
 .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px 24px 24px 64px;
   color:#8a8a8a;font:18px/1.5 var(--ui);text-align:center;pointer-events:none}
-.size{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.size{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);flex:none;white-space:nowrap}
 .size input{width:90px;accent-color:var(--cue)}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bench);
   padding:9px 16px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
@@ -84,9 +95,31 @@ textarea.out:focus-visible{outline:none}
 .notice .ok{color:var(--muted)}
 .notice .warn{color:#c0271d;font-weight:500}
 .notice details{color:var(--muted)}
-.notice summary{cursor:pointer;display:inline}
-.notice ul{margin:6px 0 0;padding-left:18px;max-height:180px;overflow:auto}
+.notice summary{cursor:pointer}
+/* Removed list: a framed box. Fades at the top/bottom edge appear only when there's more to scroll that way,
+   the scrollbar stays visible (macOS normally hides it), and a small chevron sits at the bottom while more is below. */
+.notice .listwrap{position:relative;margin-top:8px;border:1px solid var(--rule);border-radius:8px;background:var(--panel);overflow:hidden}
+.notice ul{margin:0;padding:8px 12px 8px 30px;max-height:180px;overflow-y:scroll;overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:var(--muted) transparent}
+.notice ul::-webkit-scrollbar{width:10px}
+.notice ul::-webkit-scrollbar-track{background:transparent}
+.notice ul::-webkit-scrollbar-thumb{background:var(--muted);border-radius:5px;border:3px solid var(--panel)}
+.notice li{padding:2px 0}
+.notice .listwrap::before,.notice .listwrap::after{content:"";position:absolute;left:0;right:10px;height:36px;pointer-events:none;
+  opacity:0;transition:opacity .15s}
+.notice .listwrap::before{top:0;background:linear-gradient(var(--panel), transparent)}
+.notice .listwrap::after{bottom:0;background:linear-gradient(transparent, var(--panel) 75%)}
+.notice .listwrap.above::before,.notice .listwrap.below::after{opacity:1}
+.notice .more{position:absolute;left:50%;bottom:6px;width:10px;height:10px;margin-left:-10px;border-right:2px solid var(--muted);
+  border-bottom:2px solid var(--muted);transform:rotate(45deg);pointer-events:none;opacity:0;transition:opacity .15s;z-index:1}
+.notice .listwrap.below .more{opacity:1}
+.notice .listwrap:not(.scrolls) ul{overflow-y:auto}
 
+/* Narrower screens: shed the least important bits so the buttons stay on one row */
+@media (max-width:1180px){ .sizeLabel{display:none} }
+@media (max-width:1040px){ .dlword{display:none} }
+@media (max-width:980px){ .stats{font-size:12px} .size input{width:70px} }
+@media (max-width:520px){ .bar{padding:12px 16px;gap:6px} .bar .btn{padding:7px 10px;font-size:13px} .size{display:none} }
 @media (max-width:860px){
   .app{grid-template-columns:1fr}
   .side{border-right:0;border-bottom:1px solid var(--rule)}
@@ -100,14 +133,19 @@ textarea.out:focus-visible{outline:none}
   <aside class="side">
     <div>
       <h1>Prompter Prep</h1>
-      <p class="lede">Drop a script, get it back broken into readable lines. <span style="opacity:.7">Version 19</span></p>
+      <p class="lede">Drop a script, get it back broken into readable lines. <span style="opacity:.7">Version 33</span></p>
     </div>
 
     <div>
-      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose a script file">
+      <div class="drop" id="drop">
         <strong>Drop a .tp3 or a script</strong>
         <span>.tp3, .rtf, .txt, .md or .docx</span>
+        <div class="picks">
+          <button type="button" class="btn" id="pickFile">Choose file</button>
+        </div>
       </div>
+      <!-- Fallback only: some browsers can't read a .tp3 package picked as a file, so it can be picked as a folder. -->
+      <input type="file" id="folder" webkitdirectory directory multiple hidden>
       <!-- No accept filter on purpose: on iPhone, any filter greys out .tp3 (iOS doesn't know the type).
            The trade-off is that iOS also offers Photo Library; photos are rejected with a clear message. -->
       <input type="file" id="file" multiple hidden>
@@ -142,14 +180,15 @@ textarea.out:focus-visible{outline:none}
   <main class="stage">
     <div class="bar">
       <span class="stats" id="stats">No script yet</span>
-      <label class="size">Preview size <input type="range" id="pfs" min="20" max="64" value="34"></label>
-      <button class="btn" id="copy" disabled>Copy text</button>
-      <button class="btn" id="dlRtf" disabled>Download .rtf</button>
-      <button class="btn primary" id="dlPkg" hidden>Download .tp3</button>
+      <label class="size"><span class="sizeLabel">Preview size</span> <input type="range" id="pfs" min="20" max="64" value="34" aria-label="Preview size"></label>
+      <button class="btn" id="copy" disabled>Copy</button>
+      <button class="btn" id="dlRtf" disabled title="Download .rtf"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8m0 0L4.5 6.5M8 10l3.5-3.5M3 13h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span><span class="dlword">Download </span>.rtf</span></button>
+      <button class="btn primary" id="dlPkg" hidden title="Download .tp3 (zipped)"><svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8m0 0L4.5 6.5M8 10l3.5-3.5M3 13h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span><span class="dlword">Download </span>.tp3</span></button>
     </div>
     <div class="notice" id="notice" hidden></div>
     <div class="glass">
       <textarea class="out" id="out" spellcheck="false" wrap="off" aria-label="Formatted script, editable"></textarea>
+      <div class="out view" id="view" hidden tabindex="0" aria-label="Formatted script with removed text shown in red"></div>
       <div class="empty" id="empty">Your formatted script shows up here. You can edit it before downloading.</div>
     </div>
   </main>
@@ -461,30 +500,63 @@ function stripParens(text, report){
   }
   if (!ranges.length) return text;
   let out = "", at = 0;
-  for (const [a, b] of ranges) { out += text.slice(at, a); report.removed.push(text.slice(a, b)); at = b; }
-  out += text.slice(at);
-  return out.replace(/[ \t]+([.,!?;:…])/g, "$1")          // "excited (laughs)." → "excited."
-            .replace(/[ \t]{2,}/g, " ").replace(/^[ \t]+|[ \t]+$/gm, "");
+  for (const [a, b] of ranges) {
+    out += text.slice(at, a) + "\u0002" + report.removed.length + "\u0003";   // marker: where it was
+    report.removed.push(text.slice(a, b)); at = b;
+  }
+  return out + text.slice(at);
 }
 
 function stripPageNumbers(text, report){
   // Only a line that is nothing but a page number AND has a blank line (or the start/end) on both sides.
   const lines = text.split("\n");
-  return lines.filter((l, k) => {
+  return lines.map((l, k) => {
     const isNum = /^[ \t]*(page[ \t]*)?\d{1,3}([ \t]*(of|\/)[ \t]*\d{1,3})?[ \t]*$/i.test(l);
     const blankAbove = k === 0 || !lines[k - 1].trim(), blankBelow = k === lines.length - 1 || !lines[k + 1].trim();
-    if (isNum && blankAbove && blankBelow) { report.removed.push(l.trim()); return false; }
-    return true;
+    if (!(isNum && blankAbove && blankBelow)) return l;
+    const mark = "\u0002" + report.removed.length + "\u0003";
+    report.removed.push(l.trim());
+    return mark;
   }).join("\n");
 }
 
 function applyRemovals(text, opt, report){
   if (opt.parens) text = stripParens(text, report);
   if (opt.pageNums) text = stripPageNumbers(text, report);
-  return text;
+  if (!report.removed.length) return text;
+  // Note where each removal sat — "after the Nth word", and whether it had a line to itself — so the preview
+  // can show it in red later. Words are never renumbered by formatting, so this position stays valid.
+  report.marks = [];
+  let words = 0;
+  for (const m of text.matchAll(/[\p{L}\p{N}]+|\u0002(\d+)\u0003/gu)) {
+    if (m[1] === undefined) { words++; continue; }
+    const ls = text.lastIndexOf("\n", m.index) + 1, le = text.indexOf("\n", m.index);
+    const line = text.slice(ls, le < 0 ? text.length : le);
+    report.marks.push({ id: +m[1], after: words, ownLine: !line.replace(/\u0002\d+\u0003/g, "").trim() });
+  }
+  return text.replace(/\u0002\d+\u0003/g, "")
+             .replace(/[ \t]+([.,!?;:…])/g, "$1")          // "excited (laughs)." → "excited."
+             .replace(/[ \t]{2,}/g, " ").replace(/^[ \t]+|[ \t]+$/gm, "");
 }
 
-function toUnits(text, opt, report = { removed: [], bullets: [] }){
+// Rebuild the formatted text with the removed pieces put back, for the "Show removed" view only.
+function withRemoved(out, report){
+  const ends = [...out.matchAll(/[\p{L}\p{N}]+/gu)].map(m => m.index + m[0].length);
+  const ins = (report.marks || []).map(m => {
+    const text = report.removed[m.id].replace(/\s+/g, " ").trim();
+    if (m.after === 0) return { pos: 0, id: m.id, text, pre: "", post: m.ownLine ? "\n" : " " };
+    let pos = ends[Math.min(m.after, ends.length) - 1] ?? out.length;
+    if (m.ownLine) { const nl = out.indexOf("\n", pos); pos = nl < 0 ? out.length : nl; return { pos, id: m.id, text, pre: "\n", post: "" }; }
+    while (pos < out.length && !/\s/.test(out[pos])) pos++;   // after the word's punctuation: "Cool. (laughs)"
+    return { pos, id: m.id, text, pre: " ", post: "" };
+  }).sort((a, b) => a.pos - b.pos || a.id - b.id);
+  const parts = []; let at = 0;
+  for (const x of ins) { parts.push({ t: out.slice(at, x.pos) }, { t: x.pre }, { t: x.text, removed: true }, { t: x.post }); at = x.pos; }
+  parts.push({ t: out.slice(at) });
+  return parts;
+}
+
+function toUnits(text, opt, report = { removed: [], bullets: [], marks: [] }){
   // Normalise, then turn source lines into units: {type:'para'|'item'|'cue', text}
   text = applyRemovals(cleanText(text), opt, report);
   // Square bullets are always taken out. \u0001 marks "this line was a list item".
@@ -535,7 +607,7 @@ function toUnits(text, opt, report = { removed: [], bullets: [] }){
   return units;
 }
 
-function formatScript(text, opt, report = { removed: [], bullets: [] }){
+function formatScript(text, opt, report = { removed: [], bullets: [], marks: [] }){
   const limit = opt.len * AVG;
   const units = toUnits(text, opt, report);
   const wrap = s => opt.breaks ? smartBreak(s, limit).join("\n") : s;
@@ -605,9 +677,51 @@ function render(){
   const src = state.source.trim();
   const report = { removed: [], bullets: [] };
   $("out").value = src ? formatScript(src, opt, report) : "";
+  state.report = report;
   showNotice(src, report);
-  layoutPreview(); updateStats();
+  layoutPreview(); updateStats(); updateRemovedView();
 }
+
+/* ---------- "Show removed": red preview only; copy/download always use the clean text ---------- */
+state.showRemoved = false;
+function updateRemovedView(){
+  const r = state.report, has = !!(r && r.removed.length && $("out").value);
+  const view = $("view"), out = $("out");
+  const on = has && state.showRemoved;
+  if (on) {
+    view.innerHTML = withRemoved(out.value, r)
+      .map(p => p.removed ? `<span class="removed">${esc(p.t)}</span>` : esc(p.t)).join("");
+    view.style.setProperty("--pfs", out.style.getPropertyValue("--pfs"));
+    view.style.paddingLeft = out.style.paddingLeft; view.style.paddingRight = out.style.paddingRight;
+  }
+  if (on !== !view.hidden) {                  // switching: keep roughly the same place in the script
+    const from = on ? out : view, to = on ? view : out;
+    const ratio = from.scrollTop / Math.max(1, from.scrollHeight - from.clientHeight);
+    view.hidden = !on; out.hidden = on;
+    to.scrollTop = ratio * (to.scrollHeight - to.clientHeight);
+  }
+}
+function setShowRemoved(on){
+  if (state.showRemoved === on) return;
+  state.showRemoved = on; updateRemovedView();
+  if (on) {                                  // bring the first red piece into view
+    const first = $("view").querySelector(".removed"), view = $("view");
+    if (first) {
+      const top = first.offsetTop, vis = top > view.scrollTop && top < view.scrollTop + view.clientHeight;
+      if (!vis) view.scrollTop = Math.max(0, top - view.clientHeight / 2);
+    }
+  }
+}
+// Opening the removed list shows the removed text in red in the preview; closing it hides it again.
+$("notice").addEventListener("toggle", e => { if (e.target.id === "removedList") { setShowRemoved(e.target.open); updateMoreHint(); } }, true);
+function updateMoreHint(){
+  const ul = document.querySelector("#removedList ul"); if (!ul) return;
+  const w = ul.parentElement, scrolls = ul.scrollHeight > ul.clientHeight + 2;
+  w.classList.toggle("scrolls", scrolls);
+  w.classList.toggle("above", scrolls && ul.scrollTop > 2);
+  w.classList.toggle("below", scrolls && ul.scrollTop + ul.clientHeight < ul.scrollHeight - 2);
+}
+$("notice").addEventListener("scroll", e => { if (e.target.matches("#removedList ul")) updateMoreHint(); }, true);
 
 /* ---------- safety check: every word in the script must come out the other side ---------- */
 const tokens = s => s.normalize("NFKC").match(/[\p{L}\p{N}]+/gu) || [];
@@ -627,15 +741,17 @@ function showNotice(src, report){
     const { missing, extra } = missingWords(expected, tokens($("out").value).concat(allowed));
     const loss = missing.length + extra.length;
     if (loss) rows.push(`<div class="warn">Check this script: ${missing.length ? `${missing.length} word(s) from the original are missing (${esc(missing.slice(0, 12).join(", "))})` : ""}${missing.length && extra.length ? "; " : ""}${extra.length ? `${extra.length} unexpected word(s) (${esc(extra.slice(0, 12).join(", "))})` : ""}. Please send this script so it can be fixed.</div>`);
-    else rows.push(`<div class="ok">${report.removed.length ? "Apart from what you chose to remove, every" : "Every"} word and number from the original is in the formatted script.</div>`);
+    else if (!report.removed.length) rows.push(`<div class="ok">All words and numbers are intact.</div>`);
     if (report.removed.length) {
-      rows.push(`<details><summary>Removed ${report.removed.length} item(s) you asked to remove. Show them</summary><ul>${
-        report.removed.map(r => `<li>${esc(r.replace(/\s+/g, " "))}</li>`).join("")}</ul></details>`);
+      const n = report.removed.length;
+      rows.push(`<details id="removedList"${state.showRemoved ? " open" : ""}><summary>${n} ${n === 1 ? "item" : "items"} removed. Show in red</summary><div class="listwrap"><ul>${
+        report.removed.map(r => `<li>${esc(r.replace(/\s+/g, " "))}</li>`).join("")}</ul><div class="more" aria-hidden="true"></div></div></details>`);
     }
     const bad = ($("out").value.match(/\uFFFD/g) || []).length;
     if (bad) rows.push(`<div class="warn">${bad} unreadable character(s) shown as � — a letter or symbol was lost before the file reached this app. Check those spots against the original.</div>`);
   }
   box.innerHTML = rows.join(""); box.hidden = !rows.length;
+  updateMoreHint();
 }
 
 function layoutPreview(){
@@ -645,7 +761,7 @@ function layoutPreview(){
   const w = Math.ceil(len * AVG * pfs / 1000) + 4;
   const out = $("out");
   out.style.setProperty("--pfs", pfs + "px");
-  const side = Math.max(24, Math.floor((out.clientWidth - w) / 2));
+  const side = Math.max(24, Math.floor((out.parentElement.clientWidth - w) / 2));   // works while hidden too
   out.style.paddingLeft = side + "px"; out.style.paddingRight = side + "px";
   $("empty").hidden = !!out.value;
 }
@@ -655,7 +771,6 @@ function updateStats(){
   const has = !!t.trim();
   $("copy").disabled = $("dlRtf").disabled = !has;
   $("dlPkg").hidden = !state.pkg; $("dlPkg").disabled = !has;
-  if (state.pkg) $("dlPkg").textContent = /\.tp3$/i.test(state.pkg.name) && state.pkg.isFolder === "zip" ? "Download .tp3" : "Download .zip";
   if (!has) { $("stats").textContent = "No script yet"; return; }
   const mins = words / 150, m = Math.floor(mins), s = Math.round((mins - m) * 60);
   $("stats").textContent = `${words} words, about ${m ? m + " min " : ""}${s} sec at 150 wpm`;
@@ -744,7 +859,14 @@ async function handleZip(file){
     if (z.dir || /(^|\/)(__MACOSX|\.DS_Store)/.test(path)) continue;
     entries.push({ path, file: new File([await z.async("arraybuffer")], path.split("/").pop()) });
   }
-  return handleFileSet(entries, file.name, "zip");
+  // A .tp3 is a package (folder), so whatever zip arrives — Safari zipping it on upload, or Files ▸ Compress —
+  // is treated as a zipped package: strip its root folder, and download as "Name.tp3.zip" that unzips to the package.
+  const roots = new Set(entries.map(e => e.path.split("/")[0]));
+  const single = roots.size === 1 && entries.every(e => e.path.includes("/")) ? [...roots][0] : null;
+  if (single) entries.forEach(e => e.path = e.path.slice(single.length + 1));
+  let name = single || file.name.replace(/\.zip$/i, "");
+  if (!/\.tp3$/i.test(name)) name = name.replace(/\.[^.]*$/, "") + ".tp3";
+  return handleFileSet(entries, name, true);
 }
 
 async function isZip(file){
@@ -762,8 +884,15 @@ async function handleSingle(file){
       setSource(p.text, { header: p.header, name: stem(file.name) });
       return setLoaded(`Loaded <b>${esc(file.name)}</b>`);
     }
-    // A .tp3 is a folder-style package. iPhone can't upload folders, so it hands over an empty or unreadable file.
+    // A .tp3 is a folder-style package. Safari on a Mac zips it automatically (handled above). Other browsers
+    // hand over an empty file: on a Mac, offer the folder picker; on iPhone, folders can't be picked at all.
     const hex = Array.from(head, b => b.toString(16).padStart(2, "0")).join(" ") || "none";
+    if (!isIOS && "webkitdirectory" in document.createElement("input")) {
+      setLoaded(`<span class="err">This browser can't open a .tp3 from the file picker. ` +
+        `<button type="button" class="link" id="asFolder" style="color:inherit;font-size:inherit">Choose it again as a folder</button>, ` +
+        `or drag the .tp3 onto this page.</span>`);
+      return;
+    }
     throw new Error(`iPhone can't upload a .tp3 directly because it's a package (a folder). In the Files app, ` +
       `long-press the .tp3, tap Compress, then pick the .zip it makes. ` +
       `<small style="display:block;opacity:.7;margin-top:4px">Details: ${file.size} bytes, starts with ${hex}</small>`);
@@ -831,13 +960,40 @@ function download(blob, name){
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
-const currentRTF = () => toRTF($("out").value.replace(/\s+$/, ""), state.header);
+// The one source for everything that leaves the app: the clean formatted text (never the red preview),
+// with any stray control characters (they show as ? boxes in other apps) stripped out.
+const cleanOutput = () => $("out").value.replace(/[\u0000-\u0008\u000B-\u001F\u007F\u0080-\u009F\uFFFE\uFFFF]/g, "").replace(/\s+$/, "");
+const currentRTF = () => toRTF(cleanOutput(), state.header);
 
 $("dlRtf").onclick = () => download(new Blob([currentRTF()], { type: "application/rtf" }), `${state.name} (formatted).rtf`);
 $("copy").onclick = async () => {
-  try { await navigator.clipboard.writeText($("out").value); toast("Copied"); }
-  catch { $("out").select(); document.execCommand("copy"); toast("Copied"); }
+  const text = cleanOutput();
+  try { await navigator.clipboard.writeText(text); }
+  catch {                                         // older browsers: copy from a temporary, visible-to-the-browser box
+    const t = document.createElement("textarea");
+    t.value = text; t.setAttribute("readonly", ""); t.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
+    document.body.appendChild(t); t.select(); t.setSelectionRange(0, text.length);
+    document.execCommand("copy"); t.remove();
+  }
+  toast(state.showRemoved ? "Copied, without the removed text" : "Copied");
 };
+// ⌘A inside the red preview selects just the script, not the whole page.
+$("view").addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+    e.preventDefault(); const r = document.createRange(); r.selectNodeContents($("view"));
+    const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+  }
+});
+$("view").addEventListener("mousedown", () => $("view").focus({ preventScroll: true }));
+// Selecting text in the red preview and pressing ⌘C also copies only the kept text, as plain text.
+$("view").addEventListener("copy", e => {
+  const sel = window.getSelection(); if (!sel.rangeCount) return;
+  const box = document.createElement("div"); box.appendChild(sel.getRangeAt(0).cloneContents());
+  box.querySelectorAll(".removed").forEach(x => x.remove());
+  const text = box.textContent.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").replace(/^[ \t]+/gm, "").trim()
+    .replace(/[\u0000-\u0008\u000B-\u001F\u007F\u0080-\u009F\uFFFE\uFFFF]/g, "");
+  e.clipboardData.setData("text/plain", text); e.preventDefault();
+});
 $("dlPkg").onclick = guard(async () => {
   const p = state.pkg; if (!p) return;
   const folder = p.isFolder === true;
@@ -851,8 +1007,20 @@ $("dlPkg").onclick = guard(async () => {
 
 /* ---------- wiring ---------- */
 const drop = $("drop");
-drop.onclick = () => $("file").click();
-drop.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("file").click(); } };
+// iPhone/iPad can't pick folders, so there the .tp3 goes through the normal file picker (as a compressed .zip).
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+$("pickFile").onclick = () => $("file").click();
+// The fallback link in the error message opens the folder picker.
+$("loaded").addEventListener("click", e => { if (e.target.id === "asFolder") $("folder").click(); });
+$("folder").onchange = guard(async e => {
+  const files = Array.from(e.target.files).filter(f => !/(^|\/)\.DS_Store$/.test(f.webkitRelativePath || f.name));
+  e.target.value = "";
+  if (!files.length) return;
+  const root = (files[0].webkitRelativePath || "").split("/")[0] || "formatted-script";
+  // Paths inside the package, without the package folder itself (same shape as a Finder drag).
+  const entries = files.map(f => ({ path: (f.webkitRelativePath || f.name).split("/").slice(1).join("/") || f.name, file: f }));
+  await handleFileSet(entries, root, true);
+});
 $("file").onchange = guard(async e => { await handleFiles(e.target.files); e.target.value = ""; });
 ["dragenter","dragover"].forEach(t => document.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
 ["dragleave","drop"].forEach(t => document.addEventListener(t, e => { e.preventDefault(); if (t === "drop" || !e.relatedTarget) drop.classList.remove("over"); }));
@@ -871,13 +1039,13 @@ $("src").addEventListener("input", () => {
 Object.values(optIds).forEach(id => $(id).addEventListener("change", render));
 $("optLen").addEventListener("input", render);
 $("autoLen").onclick = () => { $("optLen").value = state.docLen; render(); };
-$("pfs").addEventListener("input", () => { store.set({ ...readOpts(), pfs: +$("pfs").value }); layoutPreview(); });
+$("pfs").addEventListener("input", () => { store.set({ ...readOpts(), pfs: +$("pfs").value }); layoutPreview(); updateRemovedView(); });
 $("out").addEventListener("input", () => {
   layoutPreview(); updateStats();
   const ok = document.querySelector("#notice .ok");
-  if (ok) ok.textContent = "You've edited the text by hand. The word check covers the formatted version before your edits.";
+  if (ok) ok.textContent = "Edited by hand. The word check doesn't cover your edits.";
 });
-window.addEventListener("resize", layoutPreview);
+window.addEventListener("resize", () => { layoutPreview(); updateRemovedView(); });
 
 applyStored(); render();
 </script>
