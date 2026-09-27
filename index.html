@@ -66,12 +66,13 @@ legend{font-weight:600;font-size:14px;margin-bottom:8px;padding:0}
 .glass{position:relative;flex:1;background:var(--glass);overflow:hidden;min-height:60vh}
 .glass::before{content:"";position:absolute;left:18px;top:50%;width:0;height:0;transform:translateY(-50%);
   border-top:16px solid transparent;border-bottom:16px solid transparent;border-left:26px solid var(--cue);pointer-events:none;z-index:2}
-.scroll{position:absolute;inset:0;overflow:auto;padding:0 24px}
-textarea.out{display:block;margin:0 auto;background:transparent;border:0;resize:none;color:var(--glass-text);
-  font-family:var(--prompt);font-size:var(--pfs,34px);line-height:1.2;white-space:pre;overflow:hidden;
-  padding:40vh 0 50vh;min-height:100%}
-textarea.out::placeholder{color:#8a8a8a}
+textarea.out{position:absolute;inset:0;width:100%;height:100%;margin:0;background:transparent;border:0;resize:none;color:var(--glass-text);
+  font-family:var(--prompt);font-size:var(--pfs,34px);line-height:1.2;white-space:pre;overflow:auto;
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:40vh 24px 50vh}
 textarea.out:focus-visible{outline:none}
+.empty[hidden]{display:none}
+.empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px 24px 24px 64px;
+  color:#8a8a8a;font:18px/1.5 var(--ui);text-align:center;pointer-events:none}
 .edge{position:absolute;top:0;bottom:0;border-right:1px dashed rgba(255,255,255,.18);pointer-events:none}
 .size{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
 .size input{width:90px;accent-color:var(--cue)}
@@ -93,7 +94,7 @@ textarea.out:focus-visible{outline:none}
   <aside class="side">
     <div>
       <h1>Prompter Prep</h1>
-      <p class="lede">Drop a script, get it back broken into readable lines. <span style="opacity:.7">Version 10</span></p>
+      <p class="lede">Drop a script, get it back broken into readable lines. <span style="opacity:.7">Version 11</span></p>
     </div>
 
     <div>
@@ -137,10 +138,8 @@ textarea.out:focus-visible{outline:none}
       <button class="btn primary" id="dlPkg" hidden>Download .tp3</button>
     </div>
     <div class="glass">
-      <div class="scroll" id="scroll">
-        <textarea class="out" id="out" spellcheck="false" wrap="off" aria-label="Formatted script, editable"
-          placeholder="Formatted script appears here. You can edit it before downloading."></textarea>
-      </div>
+      <textarea class="out" id="out" spellcheck="false" wrap="off" aria-label="Formatted script, editable"></textarea>
+      <div class="empty" id="empty">Your formatted script shows up here. You can edit it before downloading.</div>
       <div class="edge" id="edge"></div>
     </div>
   </main>
@@ -547,16 +546,17 @@ function render(){
 }
 
 function layoutPreview(){
+  // The textarea is the scroll container (so wheel/trackpad scrolling works anywhere on the glass);
+  // side padding centres a text column exactly one line-length wide.
   const pfs = +$("pfs").value, len = +$("optLen").value;
   const w = Math.ceil(len * AVG * pfs / 1000) + 4;
-  const out = $("out");
+  const out = $("out"), edge = $("edge");
   out.style.setProperty("--pfs", pfs + "px");
-  out.style.width = w + "px";
-  out.style.height = "auto"; out.style.height = out.scrollHeight + "px";
-  const sc = $("scroll"), edge = $("edge");
-  const left = Math.max(24, (sc.clientWidth - w) / 2) + w - sc.scrollLeft;
-  edge.style.left = left + "px";
-  edge.hidden = !$("optBreaks").checked;
+  const side = Math.max(24, Math.floor((out.clientWidth - w) / 2));
+  out.style.paddingLeft = side + "px"; out.style.paddingRight = side + "px";
+  edge.style.left = (side + w - out.scrollLeft) + "px";
+  edge.hidden = !$("optBreaks").checked || !out.value;
+  $("empty").hidden = !!out.value;
 }
 
 function updateStats(){
@@ -746,7 +746,7 @@ $("optLen").addEventListener("input", render);
 $("autoLen").onclick = () => { $("optLen").value = state.docLen; render(); };
 $("pfs").addEventListener("input", () => { store.set({ ...readOpts(), pfs: +$("pfs").value }); layoutPreview(); });
 $("out").addEventListener("input", () => { layoutPreview(); updateStats(); });
-$("scroll").addEventListener("scroll", layoutPreview);
+$("out").addEventListener("scroll", () => { $("edge").style.left = (parseFloat($("out").style.paddingLeft) + Math.ceil(+$("optLen").value * AVG * +$("pfs").value / 1000) + 4 - $("out").scrollLeft) + "px"; });
 window.addEventListener("resize", layoutPreview);
 
 applyStored(); render();
