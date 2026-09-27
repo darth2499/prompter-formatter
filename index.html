@@ -73,7 +73,6 @@ textarea.out:focus-visible{outline:none}
 .empty[hidden]{display:none}
 .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:24px 24px 24px 64px;
   color:#8a8a8a;font:18px/1.5 var(--ui);text-align:center;pointer-events:none}
-.edge{position:absolute;top:0;bottom:0;border-right:1px dashed rgba(255,255,255,.18);pointer-events:none}
 .size{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
 .size input{width:90px;accent-color:var(--cue)}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bench);
@@ -94,7 +93,7 @@ textarea.out:focus-visible{outline:none}
   <aside class="side">
     <div>
       <h1>Prompter Prep</h1>
-      <p class="lede">Drop a script, get it back broken into readable lines. <span style="opacity:.7">Version 11</span></p>
+      <p class="lede">Drop a script, get it back broken into readable lines. <span style="opacity:.7">Version 12</span></p>
     </div>
 
     <div>
@@ -140,7 +139,6 @@ textarea.out:focus-visible{outline:none}
     <div class="glass">
       <textarea class="out" id="out" spellcheck="false" wrap="off" aria-label="Formatted script, editable"></textarea>
       <div class="empty" id="empty">Your formatted script shows up here. You can edit it before downloading.</div>
-      <div class="edge" id="edge"></div>
     </div>
   </main>
 </div>
@@ -550,12 +548,10 @@ function layoutPreview(){
   // side padding centres a text column exactly one line-length wide.
   const pfs = +$("pfs").value, len = +$("optLen").value;
   const w = Math.ceil(len * AVG * pfs / 1000) + 4;
-  const out = $("out"), edge = $("edge");
+  const out = $("out");
   out.style.setProperty("--pfs", pfs + "px");
   const side = Math.max(24, Math.floor((out.clientWidth - w) / 2));
   out.style.paddingLeft = side + "px"; out.style.paddingRight = side + "px";
-  edge.style.left = (side + w - out.scrollLeft) + "px";
-  edge.hidden = !$("optBreaks").checked || !out.value;
   $("empty").hidden = !!out.value;
 }
 
@@ -746,7 +742,6 @@ $("optLen").addEventListener("input", render);
 $("autoLen").onclick = () => { $("optLen").value = state.docLen; render(); };
 $("pfs").addEventListener("input", () => { store.set({ ...readOpts(), pfs: +$("pfs").value }); layoutPreview(); });
 $("out").addEventListener("input", () => { layoutPreview(); updateStats(); });
-$("out").addEventListener("scroll", () => { $("edge").style.left = (parseFloat($("out").style.paddingLeft) + Math.ceil(+$("optLen").value * AVG * +$("pfs").value / 1000) + 4 - $("out").scrollLeft) + "px"; });
 window.addEventListener("resize", layoutPreview);
 
 applyStored(); render();
