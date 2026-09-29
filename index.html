@@ -3,6 +3,7 @@
   Prompter Prep: changelog
   major.minor.patch: major = overhaul (x.0.0), minor = new feature (2.x.0), patch = fix or polish (2.5.x).
 
+  2.7.6  .tp3 script saved as text.rtfd/TXT.rtf, the way the prompter app stores it
   2.7.5  .tp3 zip written with Mac-style permissions
   2.7.4  .tp3 from pasted text / other files: black page background included, so the text shows in the prompter
   2.7.3  .tp3 downloads open at the top of the script (saved scroll position reset), with an updated word count
@@ -287,7 +288,7 @@ textarea.out[hidden]{display:none}
       <p class="foot">Removed text is never copied or downloaded.</p>
     </div>
 
-    <div class="version">Version 2.7.5</div>
+    <div class="version">Version 2.7.6</div>
   </aside>
 
   <main class="stage">
@@ -2808,20 +2809,25 @@ const baseName = () => `${state.name} (formatted)`;
 
 // .tp3 = a folder package, so it goes out zipped (Name.tp3.zip unzips to the package). If a .tp3 was loaded, its own
 // settings, overlay and arrow are kept; otherwise the built-in template (your prompter's settings) is used.
+// Inside a .tp3 the script is an RTFD package: text.rtfd/TXT.rtf (how the prompter app saves it).
+const RTFD_PATH = "text.rtfd/TXT.rtf";
 async function downloadTp3(){
   const p = state.pkg || {
-    name: `${baseName()}.tp3`, isFolder: true, rtfPath: "TXT.rtf",
+    name: `${baseName()}.tp3`, isFolder: true, rtfPath: RTFD_PATH,
     files: [{ path: "master.json", data: $("tp3Master").textContent.trim() },
             { path: "overlay.png", data: Uint8Array.from(atob($("tp3Overlay").textContent.trim()), c => c.charCodeAt(0)) },
-            { path: "TXT.rtf", data: null }],
+            { path: RTFD_PATH, data: null }],
   };
   // Written as a Mac-style zip (folder 755, files 644, like one made by Finder's Compress) so it unzips with normal
   // permissions instead of the Windows-style defaults.
   const zip = new JSZip(), root = p.isFolder ? zip.folder(p.name, { unixPermissions: 0o40755, dir: true }) : zip;
   for (const f of p.files) {
-    const data = f.path === p.rtfPath ? currentRTF()
+    const isScript = f.path === p.rtfPath;
+    const data = isScript ? currentRTF()
       : /(^|\/)master\.json$/i.test(f.path) ? patchMaster(f.data) : f.data;
-    root.file(f.path, data, { unixPermissions: 0o100644 });
+    // The script lives in a text.rtfd folder inside the .tp3. If it arrived loose (just TXT.rtf), put it back there.
+    const path = isScript && !f.path.includes("/") ? RTFD_PATH : f.path;
+    root.file(path, data, { unixPermissions: 0o100644 });
   }
   const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", mimeType: "application/zip", platform: "UNIX" });
   if (p.isFolder) { download(blob, p.name + ".zip"); toast("Downloaded. Double-click the .zip to get the .tp3 back"); }
