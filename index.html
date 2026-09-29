@@ -3,10 +3,8 @@
   Prompter Prep: changelog
   major.minor.patch: major = overhaul (x.0.0), minor = new feature (2.x.0), patch = fix or polish (2.5.x).
 
-  2.7.6  .tp3 script saved as text.rtfd/TXT.rtf, the way the prompter app stores it
-  2.7.5  .tp3 zip written with Mac-style permissions
-  2.7.4  .tp3 from pasted text / other files: black page background included, so the text shows in the prompter
-  2.7.3  .tp3 downloads open at the top of the script (saved scroll position reset), with an updated word count
+  2.7.4  Pasted text survives a refresh with its preview; code clean-up
+  2.7.3  .tp3 downloads open in the prompter app: script in text.rtfd/TXT.rtf, black page background, opens at the top
   2.7.2  Pasting very long text (like code) no longer freezes the page
   2.7.1  Download menu opens and closes with an Apple-style animation
   2.7.0  Download menu: .tp3 (any script, built-in template), .rtf, Word .docx, plain .txt
@@ -142,21 +140,17 @@ textarea.src::placeholder{color:var(--muted)}
 .stage{display:flex;flex-direction:column;min-width:0}
 .bar{display:flex;flex-wrap:nowrap;gap:8px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--hair);min-width:0;background:var(--bench)}
 .bar .btn{white-space:nowrap;flex:none;display:inline-flex;align-items:center;gap:6px;height:32px}
-.bar .btn[hidden]{display:none}
 .ico{width:15px;height:15px;flex:none}
-.chev{width:10px;height:10px;flex:none;margin-left:-1px;opacity:.85}
+.chev{width:10px;height:10px;flex:none;margin-left:-1px;opacity:.85;transition:transform .22s cubic-bezier(.2,.8,.2,1)}
 .dlWrap{position:relative;flex:none}
+/* Download menu. Apple-style pop: grows out of the button's corner with a slight spring, fades out quicker. */
 .menu{position:absolute;right:0;top:calc(100% + 6px);z-index:20;min-width:210px;padding:5px;border-radius:10px;
   background:color-mix(in srgb,var(--panel) 92%,transparent);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);
-  box-shadow:0 0 0 .5px var(--hair),0 10px 30px rgba(0,0,0,.22)}
+  box-shadow:0 0 0 .5px var(--hair),0 10px 30px rgba(0,0,0,.22);
+  transform-origin:top right;opacity:0;transform:scale(.94) translateY(-4px);transition:opacity .12s ease-in,transform .12s ease-in}
 .menu[hidden]{display:none}
-/* Apple-style pop: grows out of the button's corner with a slight spring, fades out quicker than it came in */
-.menu{transform-origin:top right;opacity:0;transform:scale(.94) translateY(-4px);
-  transition:opacity .12s ease-in,transform .12s ease-in}
 .menu.open{opacity:1;transform:none;transition:opacity .16s ease-out,transform .28s cubic-bezier(.2,1.25,.4,1)}
-.chev{transition:transform .22s cubic-bezier(.2,.8,.2,1)}
 #dlBtn[aria-expanded="true"] .chev{transform:rotate(180deg)}
-@media (prefers-reduced-motion:reduce){ .menu,.menu.open{transition:opacity .1s linear;transform:none} .chev{transition:none} }
 .menu button{display:flex;width:100%;align-items:center;justify-content:space-between;gap:16px;border:0;background:none;
   padding:7px 10px;border-radius:6px;font-size:13.5px;text-align:left;cursor:pointer}
 .menu button em{font-style:normal;color:var(--muted);font-size:12.5px}
@@ -182,7 +176,6 @@ textarea.out:focus-visible{outline:none}
 .hl[hidden]{display:none}
 .glass.tinted textarea.out{color:transparent;caret-color:var(--glass-text)}
 .glass.tinted textarea.out::selection{color:transparent;background:rgba(255,255,255,.28)}
-.spk{font-weight:inherit}   /* same weight as the textarea above it, so the caret lines up */
 .view{position:absolute;inset:0;overflow:auto;overscroll-behavior:contain;color:var(--glass-text);font-family:var(--prompt);
   font-size:var(--pfs,34px);line-height:1.2;white-space:pre-wrap;padding:40vh 24px 50vh;cursor:default}
 .view[hidden]{display:none}
@@ -226,9 +219,8 @@ textarea.out[hidden]{display:none}
 .notice .listwrap:not(.scrolls) ul{overflow-y:auto}
 
 /* Narrower screens: shed the least important bits so the buttons stay on one row */
-@media (max-width:520px){ .dlword{display:none} }
 @media (max-width:980px){ .stats{font-size:12px} }
-@media (max-width:520px){ .bar{padding:12px 16px;gap:6px} .bar .btn{padding:7px 10px;font-size:13px} }
+@media (max-width:520px){ .dlword{display:none} .bar{padding:12px 16px;gap:6px} .bar .btn{padding:7px 10px;font-size:13px} }
 @media (max-width:860px){
   .app{grid-template-columns:1fr}
   .side{border-right:0;border-bottom:1px solid var(--hair)}
@@ -288,7 +280,7 @@ textarea.out[hidden]{display:none}
       <p class="foot">Removed text is never copied or downloaded.</p>
     </div>
 
-    <div class="version">Version 2.7.6</div>
+    <div class="version">Version 2.7.4</div>
   </aside>
 
   <main class="stage">
@@ -2379,8 +2371,10 @@ function clauses(s){
    ============================================================ */
 const $ = id => document.getElementById(id);
 const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const state = { source: "", header: null, name: "script", pkg: null, docLen: null, keep: new Set() };
-// pkg = { name, isFolder, files: [{path, data(ArrayBuffer|string)}], rtfPath }
+// pkg = { name, isFolder, files: [{path, data}], rtfPath }; keep = removed pieces the person put back;
+// report = what the last format removed; base = the fully-removed version the red view is drawn from.
+const state = { source: "", header: null, name: "script", pkg: null, docLen: null, keep: new Set(),
+                report: null, base: null, speakers: [], edited: false, showRemoved: false };
 
 const store = {
   get(){ try { return JSON.parse(localStorage.getItem("prompterPrep") || "{}"); } catch { return {}; } },
@@ -2409,7 +2403,7 @@ function render(){
   const report = { removed: [], bullets: [], marks: [], speakers: [] };
   $("out").value = src ? formatScript(src, opt, report) : "";
   state.report = report;
-  state.speakers = report.speakers || [];
+  state.speakers = report.speakers;
   // The red view is always drawn from the version with *everything* removed, so putting a piece back only
   // changes its colour there (red → white) and nothing around it moves.
   if (src && state.keep.size) {
@@ -2440,7 +2434,7 @@ $("notice").addEventListener("keydown", e => {
 /* ---------- speaker colours in the preview ---------- */
 // Escaped HTML for some formatted text, with each "Name:" label line in that speaker's colour.
 function tintHTML(text){
-  const sp = state.speakers || [];
+  const sp = state.speakers;
   if (!sp.length) return esc(text);
   return text.split("\n").map(line => {
     const who = speakerOf(line, sp);
@@ -2457,8 +2451,7 @@ function paintSpeakers(){
 }
 const syncHL = () => { const o = $("out"), hl = $("hl"); hl.scrollTop = o.scrollTop; hl.scrollLeft = o.scrollLeft; };
 
-/* ---------- "Show removed": red preview only; copy/download always use the clean text ---------- */
-state.showRemoved = false;
+/* ---------- red removed view (preview only; copy and downloads always use the clean text) ---------- */
 function updateRemovedView(){
   const r = state.report, has = !!(r && (r.items || []).length && $("out").value);
   const view = $("view"), out = $("out");
@@ -2774,7 +2767,7 @@ function download(blob, name){
 // with any stray control characters (they show as ? boxes in other apps) stripped out.
 const CONTROL_CHARS = /[\u0000-\u0008\u000B-\u001F\u007F\u0080-\u009F\uFFFE\uFFFF]/g;
 const cleanOutput = () => $("out").value.replace(CONTROL_CHARS, "").replace(/\s+$/, "");
-const currentRTF = () => toRTF(cleanOutput(), state.header, state.speakers || []);
+const currentRTF = () => toRTF(cleanOutput(), state.header, state.speakers);
 
 $("copy").onclick = async () => {
   const text = cleanOutput();
@@ -2853,7 +2846,7 @@ function patchMaster(data){
 const PAPER_COLORS = { "#FFD60A": "B25000", "#64D2FF": "0066CC", "#30D158": "1E7B34", "#FF9F0A": "C93400", "#BF5AF2": "8944AB", "#FF7EB6": "C4185C" };
 async function downloadDocx(){
   const x = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const sp = state.speakers || [];
+  const sp = state.speakers;
   const paras = cleanOutput().split("\n").map(line => {
     if (!line) return "<w:p/>";
     const who = speakerOf(line, sp);
@@ -2963,7 +2956,15 @@ $("out").addEventListener("input", () => {
 });
 window.addEventListener("resize", () => { layoutPreview(); updateRemovedView(); syncHL(); });
 
-applyStored(); render();
+// After a refresh the browser puts pasted text (and switch states) back on its own, sometimes only once the page
+// has finished loading. Pick that up so the preview matches what's on screen instead of going blank.
+function syncFromPage(){
+  const v = $("src").value;
+  if (v !== state.source) state.source = v;
+  render();
+}
+applyStored(); syncFromPage();
+window.addEventListener("pageshow", syncFromPage);
 </script>
 </body>
 </html>
