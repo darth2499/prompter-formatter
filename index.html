@@ -3,6 +3,7 @@
   Prompter Prep: changelog
   major.minor.patch: major = overhaul (x.0.0), minor = new feature (2.x.0), patch = fix or polish (2.5.x).
 
+  2.7.5  .tp3 zip written with Mac-style permissions
   2.7.4  .tp3 from pasted text / other files: black page background included, so the text shows in the prompter
   2.7.3  .tp3 downloads open at the top of the script (saved scroll position reset), with an updated word count
   2.7.2  Pasting very long text (like code) no longer freezes the page
@@ -286,7 +287,7 @@ textarea.out[hidden]{display:none}
       <p class="foot">Removed text is never copied or downloaded.</p>
     </div>
 
-    <div class="version">Version 2.7.4</div>
+    <div class="version">Version 2.7.5</div>
   </aside>
 
   <main class="stage">
@@ -2814,13 +2815,15 @@ async function downloadTp3(){
             { path: "overlay.png", data: Uint8Array.from(atob($("tp3Overlay").textContent.trim()), c => c.charCodeAt(0)) },
             { path: "TXT.rtf", data: null }],
   };
-  const zip = new JSZip(), root = p.isFolder ? zip.folder(p.name) : zip;
+  // Written as a Mac-style zip (folder 755, files 644, like one made by Finder's Compress) so it unzips with normal
+  // permissions instead of the Windows-style defaults.
+  const zip = new JSZip(), root = p.isFolder ? zip.folder(p.name, { unixPermissions: 0o40755, dir: true }) : zip;
   for (const f of p.files) {
     const data = f.path === p.rtfPath ? currentRTF()
       : /(^|\/)master\.json$/i.test(f.path) ? patchMaster(f.data) : f.data;
-    root.file(f.path, data);
+    root.file(f.path, data, { unixPermissions: 0o100644 });
   }
-  const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", mimeType: "application/zip" });
+  const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", mimeType: "application/zip", platform: "UNIX" });
   if (p.isFolder) { download(blob, p.name + ".zip"); toast("Downloaded. Double-click the .zip to get the .tp3 back"); }
   else { download(blob, "formatted-script.zip"); toast("Downloaded"); }
 }
