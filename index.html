@@ -3,6 +3,8 @@
   Prompter Prep: changelog
   major.minor.patch: major = overhaul (x.0.0), minor = new feature (2.x.0), patch = fix or polish (2.5.x).
 
+  2.7.3  .tp3 downloads open at the top of the script (saved scroll position reset), with an updated word count
+  2.7.2  Pasting very long text (like code) no longer freezes the page
   2.7.1  Download menu opens and closes with an Apple-style animation
   2.7.0  Download menu: .tp3 (any script, built-in template), .rtf, Word .docx, plain .txt
   2.6.1  Restoring no longer shifts the preview; restore from the list only
@@ -283,7 +285,7 @@ textarea.out[hidden]{display:none}
       <p class="foot">Removed text is never copied or downloaded.</p>
     </div>
 
-    <div class="version">Version 2.7.1</div>
+    <div class="version">Version 2.7.3</div>
   </aside>
 
   <main class="stage">
@@ -2109,10 +2111,11 @@ function cleanText(text){
              .replace(/[\u200B-\u200D\u2060\uFEFF\u00AD]/g, "");               // zero-width characters, soft hyphens
   // A line break that got lost leaves sentences glued together: "positive comps.Women’s were..."
   // Only when a real word follows (capital + lowercase, or "I"), so "Node.JS", "Ph.D", "U.S.A" are untouched.
-  text = text.replace(/(\S+?)([.!?]+["”’)]?)(?=["“‘]?(?:[A-Z][a-z]|I[\s’']))/g, (m, before, stop) => {
-    if (!/[A-Za-z0-9%)\]”’"']$/.test(before)) return m;
-    if (stop[0] === "." && /(^|[.\s(])[A-Za-z]$/.test(before)) return m;   // single-letter segment: U.S.A, J.K.
-    return before + stop + " ";
+  // (Matches only the one character before the stop, so it stays fast even on huge unbroken strings.)
+  text = text.replace(/([A-Za-z0-9%)\]”’"'])([.!?]+["”’)]?)(?=["“‘]?(?:[A-Z][a-z]|I[\s’']))/g, (m, last, stop, at, s) => {
+    const prev = at > 0 ? s[at - 1] : "";
+    if (stop[0] === "." && /[A-Za-z]/.test(last) && (at === 0 || /[.\s(]/.test(prev))) return m;   // U.S.A, J.K.
+    return last + stop + " ";
   }).replace(/%([.!?])(?=\d)/g, "%$1 ")                            // "up 10%.2027 looks..."
     .replace(/(…|\.{3})(?=["“‘]?[A-Za-z])/g, "$1 ");            // "own…it's" → "own… it's"
   return text;
@@ -2812,10 +2815,30 @@ async function downloadTp3(){
             { path: "TXT.rtf", data: null }],
   };
   const zip = new JSZip(), root = p.isFolder ? zip.folder(p.name) : zip;
-  for (const f of p.files) root.file(f.path, f.path === p.rtfPath ? currentRTF() : f.data);
+  for (const f of p.files) {
+    const data = f.path === p.rtfPath ? currentRTF()
+      : /(^|\/)master\.json$/i.test(f.path) ? patchMaster(f.data) : f.data;
+    root.file(f.path, data);
+  }
   const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", mimeType: "application/zip" });
   if (p.isFolder) { download(blob, p.name + ".zip"); toast("Downloaded. Double-click the .zip to get the .tp3 back"); }
   else { download(blob, "formatted-script.zip"); toast("Downloaded"); }
+}
+
+// master.json remembers where the prompter was scrolled to (in points of the *old* text). The formatted script is laid
+// out differently, so that saved position can sit past the end of the new text and the screen looks empty.
+// Reset it to the top, and update the word count. If anything about the file is unexpected, leave it untouched.
+function patchMaster(data){
+  try {
+    const text = typeof data === "string" ? data : new TextDecoder().decode(data);
+    const doc = JSON.parse(text), root = doc[0][1];
+    const setVal = (obj, key, v) => { const e = obj && obj[key]; if (e && Array.isArray(e[0]) && Array.isArray(e[0][1])) e[0][1][1] = v; };
+    const timing = root.timing && root.timing[0] && root.timing[0][1];
+    if (timing) { setVal(timing, "scrolledPosition", 0); setVal(timing, "keyPosition", 0); }
+    const info = root.textInfo && root.textInfo[0] && root.textInfo[0][1];
+    if (info) setVal(info, "wordCount", (cleanOutput().match(/\S+/g) || []).length);
+    return JSON.stringify(doc, null, 2);
+  } catch { return data; }
 }
 
 // Word: one paragraph per line, Helvetica, speaker names in a darker version of their colour (readable on white).
