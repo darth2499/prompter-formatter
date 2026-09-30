@@ -3,6 +3,8 @@
   Prompter Prep: changelog
   major.minor.patch: major = overhaul (x.0.0), minor = new feature (2.x.0), patch = fix or polish (2.5.x).
 
+  2.8.1  Revision button on the script’s file row (choose a file, paste, or drag onto its right half);
+         long links break after / ? & = like the prompter does
   2.8.0  Revisions: drop the client’s new version and only the changes come into your formatted script,
          shown in the preview (new words green, cut words crossed out)
   2.7.4  Pasted text survives a refresh with its preview; code clean-up
@@ -137,12 +139,41 @@ textarea.src{display:block;width:100%;min-height:120px;resize:vertical;border:0;
 textarea.src::placeholder{color:var(--muted)}
 .link{background:none;border:0;padding:0;color:var(--cue);cursor:pointer;font-size:13px}
 .link:hover{text-decoration:underline}
-.group[hidden]{display:none}
-.revDrop{cursor:pointer;border-radius:12px 12px 0 0;transition:background .15s}
-.revDrop:hover,.revDrop.over{background:var(--fill)}
-.revDrop.over{box-shadow:inset 0 0 0 1.5px #30D158}
-.revIco{width:20px;height:20px;flex:none;color:#30D158}
-textarea.revSrc{min-height:64px;border-radius:0 0 12px 12px;border-top:.5px solid var(--hair);font-size:13px}
+/* Revision: a button on the loaded file row, a status line under the file name, and a split drop target */
+.drop.has{position:relative}
+.revWrap{flex:none}
+.revBtn{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px;font-size:12.5px;color:#1E8E3E}
+.revBtn svg,.revLine svg{width:14px;height:14px;flex:none}
+:root .revBtn{color:#248A3D}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]) .revBtn{color:#30D158} }
+.drop:not(.has) .revWrap,.drop:not(.has) .split{display:none}
+/* (prefixed with .drop to win over the drop zone's generic "span" styling) */
+.drop .revLine{display:flex;align-items:center;gap:5px;margin-top:4px;font-size:12px;color:#248A3D;font-weight:500;white-space:nowrap}
+.drop .revLine[hidden]{display:none}
+.drop .revLine span{display:inline;margin:0;color:inherit;font-size:inherit;overflow:hidden;text-overflow:ellipsis}
+.drop .revBtn span,.drop .menu span{display:inline;margin:0;color:inherit;font-size:inherit}
+.drop .menu{min-width:190px;text-align:left}
+.revX{border:0;background:var(--fill);color:var(--muted2);width:18px;height:18px;border-radius:50%;font-size:9px;line-height:18px;
+  padding:0;cursor:pointer;margin-left:2px}
+.revX:hover{background:var(--fill2);color:var(--ink)}
+.split{position:absolute;inset:0;display:none;grid-template-columns:1fr 1fr;gap:6px;padding:6px;border-radius:14px;
+  background:var(--panel);z-index:3}
+.drop.has.over .split{display:grid}
+.split .half{display:flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;border:1.5px dashed var(--rule);
+  font-size:13px;font-weight:600;color:var(--muted2);transition:background .12s,border-color .12s,color .12s}
+.split .half svg{width:16px;height:16px}
+.split .half.hot[data-half="replace"]{border-color:var(--cue);border-style:solid;color:var(--cue);background:color-mix(in srgb,var(--cue) 7%,var(--panel))}
+.split .half.hot[data-half="revise"]{border-color:#30D158;border-style:solid;color:#248A3D;background:color-mix(in srgb,#30D158 9%,var(--panel))}
+/* Paste sheet */
+.sheet{border:0;border-radius:14px;padding:22px;width:min(560px,92vw);background:var(--panel);color:var(--ink);
+  box-shadow:0 0 0 .5px var(--hair),0 24px 60px rgba(0,0,0,.35)}
+.sheet::backdrop{background:rgba(0,0,0,.35);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+.sheet[open]{animation:sheetIn .22s cubic-bezier(.2,1.1,.4,1)}
+@keyframes sheetIn{from{opacity:0;transform:translateY(-8px) scale(.98)}to{opacity:1;transform:none}}
+.sheet h2{margin:0 0 4px;font-size:16px;font-weight:600}
+.sheet p{margin:0 0 12px;font-size:13px;color:var(--muted)}
+.sheet textarea{width:100%;height:220px;resize:vertical;border:0;border-radius:10px;background:var(--fill);padding:12px;font-size:13.5px;line-height:1.45}
+.sheetBtns{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
 .view .ins{background:rgba(48,209,88,.32);border-radius:4px;box-shadow:0 0 0 2px rgba(48,209,88,.32)}
 .view .del{color:#8E8E93;text-decoration:line-through;text-decoration-thickness:2px}
 .notice .chg li{cursor:pointer}
@@ -255,7 +286,18 @@ textarea.out[hidden]{display:none}
           <span id="dropClick">or click to choose a file</span>
         </div>
         <svg class="fileIco" viewBox="0 0 34 40" aria-hidden="true"><path d="M4 1h18l11 11v25a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2z" fill="currentColor" opacity=".14"/><path d="M22 1v9a2 2 0 0 0 2 2h9" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".5"/><path d="M8 20h18M8 25h18M8 30h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        <div class="fileMeta"><div class="fileName" id="fileName"></div><span class="fileSub" id="fileSub"></span></div>
+        <div class="fileMeta"><div class="fileName" id="fileName"></div><span class="fileSub" id="fileSub"></span>
+          <span class="revLine" id="revLine" hidden><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10a6 6 0 0 1 10.2-4.3M16 10a6 6 0 0 1-10.2 4.3M14.5 2.5v3.4h-3.4M5.5 17.5v-3.4h3.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="revInfo"></span><button type="button" class="revX" id="revClear" aria-label="Remove revision">✕</button></span>
+        </div>
+        <div class="dlWrap revWrap">
+          <button type="button" class="btn revBtn" id="reviseBtn" aria-haspopup="menu" aria-expanded="false" title="Bring in the client's revision"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10a6 6 0 0 1 10.2-4.3M16 10a6 6 0 0 1-10.2 4.3M14.5 2.5v3.4h-3.4M5.5 17.5v-3.4h3.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Revision</span></button>
+          <div class="menu" id="revMenu" role="menu" hidden>
+            <button role="menuitem" data-rev="file"><span>Choose a file…</span></button>
+            <button role="menuitem" data-rev="paste"><span>Paste the revision…</span></button>
+          </div>
+        </div>
+        <!-- While dragging onto a loaded script: left half replaces it, right half brings the file in as a revision. -->
+        <div class="split" aria-hidden="true"><div class="half" data-half="replace">Replace script</div><div class="half" data-half="revise"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10a6 6 0 0 1 10.2-4.3M16 10a6 6 0 0 1-10.2 4.3M14.5 2.5v3.4h-3.4M5.5 17.5v-3.4h3.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Add as revision</div></div>
       </div>
       <!-- Fallback only: some browsers can't read a .tp3 package picked as a file, so it can be picked as a folder. -->
       <input type="file" id="folder" webkitdirectory directory multiple hidden>
@@ -267,17 +309,6 @@ textarea.out[hidden]{display:none}
 
     <textarea class="src" id="src" placeholder="Or paste a script here" aria-label="Or paste a script here"></textarea>
 
-    <div class="group" id="revGroup" hidden>
-      <div class="groupHead">Revision</div>
-      <div class="card">
-        <div class="row revDrop" id="revDrop" role="button" tabindex="0" aria-label="Add the client's revision">
-          <svg class="revIco" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10a6 6 0 0 1 10.2-4.3M16 10a6 6 0 0 1-10.2 4.3M14.5 2.5v3.4h-3.4M5.5 17.5v-3.4h3.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <span class="label"><span id="revTitle">Add the client's revision</span><small id="revSub">Drop it here or click to choose. Only the changes come in.</small></span>
-          <button type="button" class="link" id="revClear" hidden>Remove</button>
-        </div>
-        <textarea class="src revSrc" id="revSrc" autocomplete="off" placeholder="Or paste the revision here" aria-label="Or paste the revision here"></textarea>
-      </div>
-    </div>
     <input type="file" id="revFile" multiple hidden>
 
     <div class="group">
@@ -305,7 +336,7 @@ textarea.out[hidden]{display:none}
       <p class="foot">Removed text is never copied or downloaded.</p>
     </div>
 
-    <div class="version">Version 2.8.0</div>
+    <div class="version">Version 2.8.1</div>
   </aside>
 
   <main class="stage">
@@ -334,6 +365,14 @@ textarea.out[hidden]{display:none}
   </main>
 </div>
 <div class="toast" id="toast" role="status"></div>
+<dialog class="sheet" id="revSheet" aria-label="Paste the client's revision">
+  <form method="dialog">
+    <h2>Paste the revision</h2>
+    <p>Only the changes come into your script. Everything else stays as you formatted it.</p>
+    <textarea id="revPaste" placeholder="Paste the client's new version here"></textarea>
+    <div class="sheetBtns"><button class="btn" value="cancel">Cancel</button><button class="btn primary" value="apply" id="revApply">Bring in changes</button></div>
+  </form>
+</dialog>
 
 <!-- Built-in .tp3 template (settings, arrow and overlay from your prompter document), used when the script
      didn't come from a .tp3. -->
@@ -2058,9 +2097,27 @@ function nameGlue(words){
   return glue;
 }
 
+// A single "word" wider than a line (a link like https://www.youtube.com/watch?v=…) is broken after / ? & = # . _ -,
+// the way the prompter wraps it — never in the middle of letters or numbers, and never inside "https://".
+function splitLong(word, limit){
+  if (textWidth(word) <= limit) return [word];
+  const scheme = word.indexOf("://"), minCut = scheme >= 0 ? scheme + 3 : 1;
+  const out = []; let start = 0, width = 0, lastCut = -1;
+  for (let i = 0; i < word.length; i++) {
+    width += HW[word[i]] ?? 556;
+    if (width > limit && lastCut > start) {
+      out.push(word.slice(start, lastCut)); start = lastCut; lastCut = -1;
+      width = textWidth(word.slice(start, i + 1));
+    }
+    if (i + 1 >= minCut && i + 1 < word.length && /[\/?&=#._~:-]/.test(word[i]) && !/[\/?&=#._~:-]/.test(word[i + 1])) lastCut = i + 1;
+  }
+  out.push(word.slice(start));
+  return out;
+}
+
 function smartBreak(sentence, limit){
   const words = sentence.split(" ").filter(Boolean), n = words.length;
-  if (n < 2 || textWidth(sentence) <= limit) return [sentence];
+  if (n < 2 || textWidth(sentence) <= limit) return n === 1 ? splitLong(sentence, limit) : [sentence];
   const ww = words.map(textWidth), sp = HW[" "];
   const inside = []; let d = 0, q = 0;                          // is boundary after word k inside [..] / "..."
   words.forEach((w, k) => {
@@ -2093,7 +2150,7 @@ function smartBreak(sentence, limit){
   }
   const lines = []; let j = n;
   while (j > 0) { const i = from[j]; lines.unshift(words.slice(i, j).join(" ")); j = i; }
-  return lines;
+  return lines.flatMap(l => l.includes(" ") ? [l] : splitLong(l, limit));
 }
 
 // Square bullets and glyphs that show up as boxes: ■□▪▫ ◻◼◽◾ ☐ ❏❐❑❒ ⬛⬜, Wingdings/Symbol
@@ -2326,7 +2383,11 @@ function toUnits(text, opt, report = { removed: [], bullets: [], marks: [] }){
       const prevEnds = /[.!?:;]["”’]?$/.test(buf.text);
       const hardWrap = !prevEnds && !isHeading(buf.text) && !isNumberLine(buf.text) && !isNumberLine(line) &&
                        (buf.type !== "item" || /^[a-z]/.test(line));
-      if (hardWrap) { buf.text += (/[a-z]-$/i.test(buf.text) && /^[a-z]/.test(line) ? "" : " ") + line; continue; }
+      // No space when re-joining a hyphenated word ("mom-" / "core") or a link the prompter broke ("…youtube.com/" / "watch?v=…").
+      const lastWord = buf.text.slice(buf.text.lastIndexOf(" ") + 1);
+      const glue = (/[a-z]-$/i.test(buf.text) && /^[a-z]/.test(line)) ||
+                   (/[\/?&=#_~.-]$/.test(lastWord) && /\/|:\/\/|^www\./i.test(lastWord) && /^[^\s]/.test(line) && !/^[A-Z][a-z]/.test(line));
+      if (hardWrap) { buf.text += (glue ? "" : " ") + line; continue; }
       flush();
     }
     buf = { type: "para", text: line };
@@ -2522,7 +2583,6 @@ function render(){
   } else state.base = { out: $("out").value, report };
   state.edited = false;
   showNotice(state.rev ? state.rev.raw : src, report);
-  $("revGroup").hidden = !src && !state.rev;
   layoutPreview(); updateStats(); updateRemovedView(); paintSpeakers();
 }
 
@@ -3063,17 +3123,18 @@ function applyRevision(text, name){
   if (!/\S/.test(text)) return;
   state.rev = { base: cleanOutput(), raw: text, name: name || "Pasted revision", segs: [] };
   state.showChanges = true;
-  $("revTitle").textContent = state.rev.name; $("revClear").hidden = false;
   render();
   const n = state.rev.segs.filter(s => s.type !== "same").length;
-  $("revSub").textContent = n ? `${n} ${n === 1 ? "change" : "changes"} brought in` : "No changes";
+  $("revInfo").textContent = n ? `Revision: ${n} ${n === 1 ? "change" : "changes"}` : "Revision: no changes";
+  $("revLine").title = state.rev.name;
+  $("revLine").hidden = false;
+  toast(n ? `Brought in ${n} ${n === 1 ? "change" : "changes"}` : "No changes in the revision");
   jumpToChange();
 }
 function clearRevision(rerender = true){
-  if (!state.rev && !$("revSrc").value) return;
-  state.rev = null; state.showChanges = false; $("revSrc").value = "";
-  $("revTitle").textContent = "Add the client's revision"; $("revClear").hidden = true;
-  $("revSub").textContent = "Drop it here or click to choose. Only the changes come in.";
+  $("revLine").hidden = true;
+  if (!state.rev) return;
+  state.rev = null; state.showChanges = false; $("revLine").hidden = true;
   if (rerender) render();
 }
 // Read a revision file into plain text (same formats as the main drop zone).
@@ -3082,7 +3143,7 @@ async function revisionText(files){
   if (ext === "rtf") return parseRTF(await readRTF(f)).text;
   if (ext === "docx") return docxToText(await readBuf(f));
   if (ext === "tp3" || ext === "zip") {
-    if (!(await isZip(f))) throw new Error("Couldn't read that .tp3. Drag it from Finder onto the Revision box instead.");
+    if (!(await isZip(f))) throw new Error("Couldn't read that .tp3. Drag it from Finder onto the right half of the script instead.");
     const zip = await JSZip.loadAsync(await readBuf(f));
     const rtf = Object.keys(zip.files).find(p => /\.rtf$/i.test(p) && !/__MACOSX/.test(p));
     if (!rtf) throw new Error("No script found in that .tp3.");
@@ -3091,38 +3152,62 @@ async function revisionText(files){
   if (["txt", "md", "text", ""].includes(ext)) return readTextSmart(f);
   throw new Error(`Can't read .${ext} files. Use .tp3, .rtf, .txt, .md or .docx.`);
 }
-const revDrop = $("revDrop");
-revDrop.addEventListener("click", e => { if (e.target.id !== "revClear") $("revFile").click(); });
-revDrop.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("revFile").click(); } });
-$("revClear").onclick = () => clearRevision();
-$("revFile").onchange = guard(async e => {
-  const files = [...e.target.files]; e.target.value = "";
-  if (files.length) applyRevision(await revisionText(files), files[0].name);
-});
-["dragenter", "dragover"].forEach(t => revDrop.addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); revDrop.classList.add("over"); }));
-revDrop.addEventListener("dragleave", () => revDrop.classList.remove("over"));
-revDrop.addEventListener("drop", guard(async e => {
-  e.preventDefault(); e.stopPropagation(); revDrop.classList.remove("over"); drop.classList.remove("over");
-  const items = [...(e.dataTransfer.items || [])];
+async function revisionFromDrop(dt){
+  const items = [...(dt.items || [])];
   const entry = items.length === 1 && items[0].webkitGetAsEntry ? items[0].webkitGetAsEntry() : null;
   if (entry && entry.isDirectory) {                            // a .tp3 dragged from Finder
     const rtf = (await readDir(entry)).find(x => extOf(x.path) === "rtf");
     if (!rtf) throw new Error("No script found in that .tp3.");
     return applyRevision(parseRTF(await readRTF(rtf.file)).text, entry.name);
   }
-  const files = [...e.dataTransfer.files];
+  const files = [...dt.files];
   if (files.length) applyRevision(await revisionText(files), files[0].name);
-}));
-let revTimer;
-$("revSrc").addEventListener("input", () => {
-  clearTimeout(revTimer);
-  revTimer = setTimeout(() => {
-    const v = $("revSrc").value;
-    if (!/\S/.test(v)) return clearRevision();
-    if (state.rev && state.rev.name === "Pasted revision") { state.rev.raw = v; render(); }   // still typing: same base
-    else applyRevision(v, "Pasted revision");
-  }, 300);
+}
+
+// The Revision button on the file row opens a small menu: choose a file, or paste.
+const revMenu = $("revMenu"), revBtn = $("reviseBtn");
+function openRevMenu(open){
+  revBtn.setAttribute("aria-expanded", open); clearTimeout(revMenu._t);
+  if (open) { revMenu.hidden = false; void revMenu.offsetWidth; revMenu.classList.add("open"); revMenu.querySelector("button").focus({ preventScroll: true }); }
+  else { revMenu.classList.remove("open"); revMenu._t = setTimeout(() => { if (!revMenu.classList.contains("open")) revMenu.hidden = true; }, 140); }
+}
+revBtn.addEventListener("click", e => { e.stopPropagation(); openRevMenu(!revMenu.classList.contains("open")); });
+revMenu.addEventListener("click", e => {
+  e.stopPropagation();
+  const b = e.target.closest("button[data-rev]"); if (!b) return;
+  openRevMenu(false);
+  if (b.dataset.rev === "file") $("revFile").click();
+  else { $("revPaste").value = ""; $("revSheet").showModal(); $("revPaste").focus(); }
 });
+revMenu.addEventListener("keydown", e => {
+  const list = [...revMenu.querySelectorAll("button")], i = list.indexOf(document.activeElement);
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); list[(i + (e.key === "ArrowDown" ? 1 : list.length - 1)) % list.length].focus(); }
+  else if (e.key === "Escape") { e.stopPropagation(); openRevMenu(false); revBtn.focus(); }
+});
+document.addEventListener("click", e => { if (revMenu.classList.contains("open") && !e.target.closest(".revWrap")) openRevMenu(false); });
+$("revClear").addEventListener("click", e => { e.stopPropagation(); clearRevision(); });
+$("revLine").addEventListener("click", e => e.stopPropagation());
+$("revSheet").addEventListener("close", () => {
+  if ($("revSheet").returnValue === "apply") applyRevision($("revPaste").value, "Pasted revision");
+});
+$("revFile").onchange = guard(async e => {
+  const files = [...e.target.files]; e.target.value = "";
+  if (files.length) applyRevision(await revisionText(files), files[0].name);
+});
+
+// Dragging onto a loaded script splits the box in two: left replaces the script, right adds a revision.
+const dropBox = $("drop");
+const halfAt = e => { const r = dropBox.getBoundingClientRect(); return e.clientX > r.left + r.width / 2 ? "revise" : "replace"; };
+dropBox.addEventListener("dragover", e => {
+  if (!dropBox.classList.contains("has")) return;
+  const h = halfAt(e);
+  dropBox.querySelectorAll(".split .half").forEach(x => x.classList.toggle("hot", x.dataset.half === h));
+});
+dropBox.addEventListener("drop", guard(async e => {
+  if (!dropBox.classList.contains("has") || halfAt(e) !== "revise") return;   // left half: normal replace (below)
+  e.preventDefault(); e.stopPropagation(); dropBox.classList.remove("over");
+  await revisionFromDrop(e.dataTransfer);
+}));
 
 /* ---------- wiring ---------- */
 // iPhone/iPad can't pick folders, so there a .tp3 goes through the normal picker (as a compressed .zip).
@@ -3134,7 +3219,7 @@ if (isFirefoxMac) $("dropClick").textContent = "or click to choose the folder";
 // The whole drop box is the picker: click it, or focus it and press Enter / Space.
 const drop = $("drop");
 const openPicker = () => (isFirefoxMac ? $("folder") : $("file")).click();
-drop.addEventListener("click", openPicker);
+drop.addEventListener("click", e => { if (!e.target.closest(".revWrap, .revLine, dialog")) openPicker(); });
 drop.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPicker(); } });
 // The fallback link in the error message opens the folder picker.
 $("loaded").addEventListener("click", e => { if (e.target.id === "asFolder") $("folder").click(); });
@@ -3165,7 +3250,7 @@ $("src").addEventListener("input", () => {
   pasteTimer = setTimeout(() => {
     const keepPkg = state.pkg;  // editing the source keeps the loaded document for download
     state.source = $("src").value;
-    if (!keepPkg && !state.header) { setLoaded(""); showFile(null); }
+    if (!keepPkg && !state.header) { setLoaded(""); showFile(/\S/.test(state.source) ? "Pasted script" : null); }
     render();
   }, 150);
 });
@@ -3186,6 +3271,7 @@ window.addEventListener("resize", () => { layoutPreview(); updateRemovedView(); 
 function syncFromPage(){
   const v = $("src").value;
   if (v !== state.source) state.source = v;
+  if (/\S/.test(v) && !state.pkg && !state.header && !$("drop").classList.contains("has")) showFile("Pasted script");
   render();
 }
 applyStored(); syncFromPage();
