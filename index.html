@@ -3,6 +3,8 @@
   Prompter Prep: changelog
   major.minor.patch: major = overhaul (x.0.0), minor = new feature (2.x.0), patch = fix or polish (2.5.x).
 
+  2.8.0  Revisions: drop the client’s new version and only the changes come into your formatted script,
+         shown in the preview (new words green, cut words crossed out)
   2.7.4  Pasted text survives a refresh with its preview; code clean-up
   2.7.3  .tp3 downloads open in the prompter app: script in text.rtfd/TXT.rtf, black page background, opens at the top
   2.7.2  Pasting very long text (like code) no longer freezes the page
@@ -135,6 +137,16 @@ textarea.src{display:block;width:100%;min-height:120px;resize:vertical;border:0;
 textarea.src::placeholder{color:var(--muted)}
 .link{background:none;border:0;padding:0;color:var(--cue);cursor:pointer;font-size:13px}
 .link:hover{text-decoration:underline}
+.group[hidden]{display:none}
+.revDrop{cursor:pointer;border-radius:12px 12px 0 0;transition:background .15s}
+.revDrop:hover,.revDrop.over{background:var(--fill)}
+.revDrop.over{box-shadow:inset 0 0 0 1.5px #30D158}
+.revIco{width:20px;height:20px;flex:none;color:#30D158}
+textarea.revSrc{min-height:64px;border-radius:0 0 12px 12px;border-top:.5px solid var(--hair);font-size:13px}
+.view .ins{background:rgba(48,209,88,.32);border-radius:4px;box-shadow:0 0 0 2px rgba(48,209,88,.32)}
+.view .del{color:#8E8E93;text-decoration:line-through;text-decoration-thickness:2px}
+.notice .chg li{cursor:pointer}
+.notice .chg li b{font-weight:600;color:var(--ink)}
 .version{margin-top:auto;padding-top:8px;font-size:11.5px;color:var(--muted);text-align:center}
 
 .stage{display:flex;flex-direction:column;min-width:0}
@@ -255,6 +267,19 @@ textarea.out[hidden]{display:none}
 
     <textarea class="src" id="src" placeholder="Or paste a script here" aria-label="Or paste a script here"></textarea>
 
+    <div class="group" id="revGroup" hidden>
+      <div class="groupHead">Revision</div>
+      <div class="card">
+        <div class="row revDrop" id="revDrop" role="button" tabindex="0" aria-label="Add the client's revision">
+          <svg class="revIco" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10a6 6 0 0 1 10.2-4.3M16 10a6 6 0 0 1-10.2 4.3M14.5 2.5v3.4h-3.4M5.5 17.5v-3.4h3.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span class="label"><span id="revTitle">Add the client's revision</span><small id="revSub">Drop it here or click to choose. Only the changes come in.</small></span>
+          <button type="button" class="link" id="revClear" hidden>Remove</button>
+        </div>
+        <textarea class="src revSrc" id="revSrc" autocomplete="off" placeholder="Or paste the revision here" aria-label="Or paste the revision here"></textarea>
+      </div>
+    </div>
+    <input type="file" id="revFile" multiple hidden>
+
     <div class="group">
       <div class="groupHead">Formatting</div>
       <div class="card">
@@ -280,7 +305,7 @@ textarea.out[hidden]{display:none}
       <p class="foot">Removed text is never copied or downloaded.</p>
     </div>
 
-    <div class="version">Version 2.7.4</div>
+    <div class="version">Version 2.8.0</div>
   </aside>
 
   <main class="stage">
@@ -2205,7 +2230,7 @@ function applyRemovals(text, opt, report){
              .replace(/[ \t]{2,}/g, " ").replace(/^[ \t]+|[ \t]+$/gm, "");
 }
 
-// Rebuild the formatted text with the removed pieces put back, for the "Show removed" view only.
+// Rebuild the formatted text with the removed pieces put back, for the red removed view only.
 function withRemoved(out, report){
   const found = [...out.matchAll(/[\p{L}\p{N}]+/gu)];
   const ends = found.map(m => m.index + m[0].length), starts = found.map(m => m.index);
@@ -2367,6 +2392,83 @@ function clauses(s){
 }
 
 /* ============================================================
+   Revisions: bring a client's new version into an already-formatted script
+   ============================================================ */
+// Both scripts are compared word by word (line breaks and spacing don't count). The script is cut into pieces at
+// points where both versions start a new block (a sentence, a speaker's turn or a list). A piece with no changes is
+// kept exactly as it was in your script — your line breaks and hand edits included; a changed piece is taken from the
+// freshly formatted revision. Curly/straight quotes and dash styles don't count as changes.
+const normWord = w => w.normalize("NFKC").replace(/[‘’‚′]/g, "'").replace(/[“”„″]/g, '"').replace(/[–—]/g, "-");
+const blocksOf = text => text.split(/\n[ \t]*\n+/).map(b => b.replace(/^\n+|\n+$/g, "")).filter(b => /\S/.test(b));
+
+// Word diff (Myers), after trimming the common start and end. Returns ops: "=" same, "-" only in a, "+" only in b.
+function diffWords(a, b){
+  let s = 0, ea = a.length, eb = b.length;
+  while (s < ea && s < eb && a[s] === b[s]) s++;
+  while (ea > s && eb > s && a[ea - 1] === b[eb - 1]) { ea--; eb--; }
+  const A = a.slice(s, ea), B = b.slice(s, eb), N = A.length, M = B.length, max = N + M;
+  const mid = [];
+  if (N && M && max <= 20000) {
+    const off = max + 1, V = new Int32Array(2 * max + 3), trace = [];
+    let found = false;
+    for (let d = 0; d <= max && !found; d++) {
+      trace.push(V.slice(off - d - 1, off + d + 2));
+      for (let k = -d; k <= d; k += 2) {
+        let x = (k === -d || (k !== d && V[off + k - 1] < V[off + k + 1])) ? V[off + k + 1] : V[off + k - 1] + 1;
+        let y = x - k;
+        while (x < N && y < M && A[x] === B[y]) { x++; y++; }
+        V[off + k] = x;
+        if (x >= N && y >= M) { found = true; break; }
+      }
+      if (d > 3000) break;                                      // wildly different: treat the middle as replaced
+    }
+    if (found) {
+      let x = N, y = M;
+      for (let d = trace.length - 1; d >= 0 && (x > 0 || y > 0); d--) {
+        const Vd = trace[d], at = k => Vd[k + d + 1], k = x - y;
+        const down = d > 0 && (k === -d || (k !== d && at(k - 1) < at(k + 1)));
+        const pk = d === 0 ? 0 : down ? k + 1 : k - 1, px = d === 0 ? 0 : at(pk), py = px - pk;
+        while (x > px && y > py) { mid.push("="); x--; y--; }
+        if (d > 0) mid.push(down ? "+" : "-");
+        x = px; y = py;
+      }
+      mid.reverse();
+    }
+  }
+  if (!mid.length && (N || M)) { for (let i = 0; i < N; i++) mid.push("-"); for (let j = 0; j < M; j++) mid.push("+"); }
+  return [...Array(s).fill("="), ...mid, ...Array(a.length - ea).fill("=")];
+}
+
+// base: your current formatted script. rev: the revision, already formatted with the current settings.
+// Returns the merged text and its segments: {type: "same"|"changed"|"added"|"cut", text, old, ops}.
+function mergeRevision(base, rev){
+  const words = blocks => { const w = [], blk = []; blocks.forEach((b, i) => (b.match(/\S+/g) || []).forEach(x => { w.push(x); blk.push(i); })); return { w, blk }; };
+  const aB = blocksOf(base), bB = blocksOf(rev), A = words(aB), B = words(bB);
+  const ops = diffWords(A.w.map(normWord), B.w.map(normWord));
+  const aStart = i => i >= A.w.length || i === 0 || A.blk[i] !== A.blk[i - 1];
+  const bStart = j => j >= B.w.length || j === 0 || B.blk[j] !== B.blk[j - 1];
+  const segs = []; let i = 0, j = 0, si = 0, sj = 0, segOps = [], changed = false;
+  const close = () => {
+    if (!segOps.length) return;
+    const aBlocks = i > si ? [A.blk[si], A.blk[i - 1]] : null, bBlocks = j > sj ? [B.blk[sj], B.blk[j - 1]] : null;
+    const pick = (list, r) => r ? list.slice(r[0], r[1] + 1).join("\n\n") : "";
+    const old = pick(aB, aBlocks), text = pick(bB, bBlocks);
+    const type = !changed ? "same" : !aBlocks ? "added" : !bBlocks ? "cut" : "changed";
+    segs.push({ type, text: type === "same" ? old : text, old, ops: segOps });
+    si = i; sj = j; segOps = []; changed = false;
+  };
+  for (const op of ops) {
+    if (segOps.length && aStart(i) && bStart(j)) close();
+    segOps.push(op);
+    if (op !== "=") changed = true;
+    if (op !== "+") i++;
+    if (op !== "-") j++;
+  }
+  close();
+  return { text: segs.filter(s => s.type !== "cut").map(s => s.text).join("\n\n"), segs };
+}
+
+/* ============================================================
    UI
    ============================================================ */
 const $ = id => document.getElementById(id);
@@ -2374,7 +2476,9 @@ const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'
 // pkg = { name, isFolder, files: [{path, data}], rtfPath }; keep = removed pieces the person put back;
 // report = what the last format removed; base = the fully-removed version the red view is drawn from.
 const state = { source: "", header: null, name: "script", pkg: null, docLen: null, keep: new Set(),
-                report: null, base: null, speakers: [], edited: false, showRemoved: false };
+                report: null, base: null, speakers: [], edited: false, showRemoved: false,
+                rev: null, showChanges: false };
+// rev = { base: your formatted script when the revision came in, raw: the revision's text, name, segs }
 
 const store = {
   get(){ try { return JSON.parse(localStorage.getItem("prompterPrep") || "{}"); } catch { return {}; } },
@@ -2401,17 +2505,24 @@ function render(){
   $("autoLen").hidden = !state.docLen || opt.len === state.docLen;
   const src = state.source.trim();
   const report = { removed: [], bullets: [], marks: [], speakers: [] };
-  $("out").value = src ? formatScript(src, opt, report) : "";
+  if (state.rev) {
+    // Revision mode: format the client's new version with the current settings, then keep every unchanged piece
+    // of your script exactly as it was and bring in only what changed.
+    const m = mergeRevision(state.rev.base, formatScript(state.rev.raw, opt, report));
+    state.rev.segs = m.segs;
+    $("out").value = m.text;
+  } else $("out").value = src ? formatScript(src, opt, report) : "";
   state.report = report;
   state.speakers = report.speakers;
   // The red view is always drawn from the version with *everything* removed, so putting a piece back only
   // changes its colour there (red → white) and nothing around it moves.
-  if (src && state.keep.size) {
+  if (src && state.keep.size && !state.rev) {
     const base = { removed: [], bullets: [], marks: [], speakers: [] };
     state.base = { out: formatScript(src, { ...opt, keep: new Set() }, base), report: base };
   } else state.base = { out: $("out").value, report };
   state.edited = false;
-  showNotice(src, report);
+  showNotice(state.rev ? state.rev.raw : src, report);
+  $("revGroup").hidden = !src && !state.rev;
   layoutPreview(); updateStats(); updateRemovedView(); paintSpeakers();
 }
 
@@ -2452,11 +2563,38 @@ function paintSpeakers(){
 const syncHL = () => { const o = $("out"), hl = $("hl"); hl.scrollTop = o.scrollTop; hl.scrollLeft = o.scrollLeft; };
 
 /* ---------- red removed view (preview only; copy and downloads always use the clean text) ---------- */
+// Changes view: new words highlighted green, cut words crossed out, everything else as in the merged script.
+function changesHTML(segs){
+  return segs.map((s, k) => {
+    if (s.type === "same") return tintHTML(s.text);
+    if (s.type === "cut") return `<span class="del" id="seg${k}">${esc(s.old)}</span>`;
+    if (s.type === "added") return `<span class="ins" id="seg${k}">${tintHTML(s.text)}</span>`;
+    // changed: walk the word ops over the new text and the old text together
+    const oldW = s.old.match(/\S+/g) || [], re = /\S+/g; let html = "", at = 0, oi = 0, m, pendingDel = [];
+    const flushDel = () => { if (pendingDel.length) { html += `<span class="del">${esc(pendingDel.join(" "))}</span> `; pendingDel = []; } };
+    for (const op of s.ops) {
+      if (op === "-") { pendingDel.push(oldW[oi++]); continue; }
+      m = re.exec(s.text); if (!m) break;
+      html += esc(s.text.slice(at, m.index)); flushDel();
+      html += op === "+" ? `<span class="ins">${esc(m[0])}</span>` : esc(m[0]);
+      if (op === "=") oi++;
+      at = m.index + m[0].length;
+    }
+    if (pendingDel.length) { html += " "; flushDel(); }
+    return `<span id="seg${k}">${html}${esc(s.text.slice(at))}</span>`;
+  }).join("\n\n");
+}
+
 function updateRemovedView(){
-  const r = state.report, has = !!(r && (r.items || []).length && $("out").value);
-  const view = $("view"), out = $("out");
-  const on = has && state.showRemoved;
-  if (on) {
+  const r = state.report, view = $("view"), out = $("out");
+  const showCh = !!(state.rev && state.showChanges && out.value && !state.edited);
+  const has = !!(r && (r.items || []).length && out.value && !state.rev);
+  const on = showCh || (has && state.showRemoved);
+  if (showCh) {
+    view.innerHTML = changesHTML(state.rev.segs);
+    view.style.setProperty("--pfs", out.style.getPropertyValue("--pfs"));
+    view.style.paddingLeft = out.style.paddingLeft; view.style.paddingRight = out.style.paddingRight;
+  } else if (on) {
     // After hand edits the stable base no longer matches, so fall back to placing pieces in the edited text.
     const b = state.edited || !state.base ? { out: out.value, report: r } : state.base;
     const keyOf = id => ((b.report.items || []).filter(it => !it.restored)[id] || {}).key;
@@ -2486,15 +2624,24 @@ function setShowRemoved(on){
   }
 }
 // Opening the removed list shows the removed text in red in the preview; closing it hides it again.
-$("notice").addEventListener("toggle", e => { if (e.target.id === "removedList") { setShowRemoved(e.target.open); updateMoreHint(); } }, true);
+// Opening the changes list does the same for a revision's changes; clicking a change jumps to it.
+$("notice").addEventListener("toggle", e => {
+  if (e.target.id === "removedList") { setShowRemoved(e.target.open); updateMoreHint(); }
+  if (e.target.id === "changesList") { state.showChanges = e.target.open; updateRemovedView(); updateMoreHint(); if (e.target.open) jumpToChange(); }
+}, true);
+function jumpToChange(k){
+  const view = $("view"), el = k === undefined ? view.querySelector(".ins, .del") : $("seg" + k);
+  if (el) view.scrollTop = Math.max(0, el.offsetTop - view.clientHeight / 2);
+}
+$("notice").addEventListener("click", e => { const li = e.target.closest("#changesList li"); if (li) jumpToChange(+li.dataset.seg); });
 function updateMoreHint(){
-  const ul = document.querySelector("#removedList ul"); if (!ul) return;
+  const ul = document.querySelector("#removedList ul, #changesList ul"); if (!ul) return;
   const w = ul.parentElement, scrolls = ul.scrollHeight > ul.clientHeight + 2;
   w.classList.toggle("scrolls", scrolls);
   w.classList.toggle("above", scrolls && ul.scrollTop > 2);
   w.classList.toggle("below", scrolls && ul.scrollTop + ul.clientHeight < ul.scrollHeight - 2);
 }
-$("notice").addEventListener("scroll", e => { if (e.target.matches("#removedList ul")) updateMoreHint(); }, true);
+$("notice").addEventListener("scroll", e => { if (e.target.matches("#removedList ul, #changesList ul")) updateMoreHint(); }, true);
 
 /* ---------- safety check: every word in the script must come out the other side ---------- */
 const tokens = s => s.normalize("NFKC").match(/[\p{L}\p{N}]+/gu) || [];
@@ -2514,8 +2661,18 @@ function showNotice(src, report){
     const { missing, extra } = missingWords(expected, tokens($("out").value).concat(allowed));
     const loss = missing.length + extra.length;
     if (loss) rows.push(`<div class="warn">Check this script: ${missing.length ? `${missing.length} word(s) from the original are missing (${esc(missing.slice(0, 12).join(", "))})` : ""}${missing.length && extra.length ? "; " : ""}${extra.length ? `${extra.length} unexpected word(s) (${esc(extra.slice(0, 12).join(", "))})` : ""}. Please send this script so it can be fixed.</div>`);
-    else if (!(report.items || []).length) rows.push(`<div class="ok">All words and numbers are intact.</div>`);
-    if ((report.items || []).length) {
+    else if (!(report.items || []).length && !state.rev) rows.push(`<div class="ok">All words and numbers are intact.</div>`);
+    if (state.rev) {
+      const ch = state.rev.segs.map((s, k) => ({ s, k })).filter(x => x.s.type !== "same");
+      const label = { changed: "Changed", added: "Added", cut: "Cut" };
+      const snip = t => esc(t.replace(/\s+/g, " ").slice(0, 120)) + (t.length > 120 ? "…" : "");
+      rows.push(ch.length
+        ? `<details id="changesList"${state.showChanges ? " open" : ""} class="chg"><summary>${ch.length} ${ch.length === 1 ? "change" : "changes"} from the revision. Show them</summary>` +
+          `<div class="listwrap"><ul>${ch.map(({ s, k }) => `<li data-seg="${k}"><b>${label[s.type]}:</b> ${snip(s.type === "cut" ? s.old : s.text)}</li>`).join("")}</ul>` +
+          `<div class="more" aria-hidden="true"></div></div></details>`
+        : `<div class="ok">The revision has no changes from your script.</div>`);
+      if (report.removed.length) rows.push(`<div class="ok">${report.removed.length} stage direction(s) or page number(s) in the revision were removed.</div>`);
+    } else if ((report.items || []).length) {
       const n = report.removed.length, back = report.items.length - n;
       rows.push(`<details id="removedList"${state.showRemoved ? " open" : ""}><summary>${n} ${n === 1 ? "item" : "items"} removed` +
         `${back ? ` · ${back} restored` : ""}. Show in red</summary><div class="listwrap"><ul>${
@@ -2569,6 +2726,7 @@ function showFile(name){
 
 function setSource(text, meta = {}){
   state.keep = new Set();                           // a new script starts with nothing restored
+  clearRevision(false);
   state.source = text; state.header = meta.header || null; state.name = meta.name || "script";
   state.pkg = meta.pkg || null; state.docLen = meta.docLen || null;
   $("src").value = text.trim();
@@ -2898,6 +3056,73 @@ menu.addEventListener("keydown", e => {
   else if (e.key === "Escape") { openMenu(false); dlBtn.focus(); }
 });
 document.addEventListener("click", e => { if (menu.classList.contains("open") && !e.target.closest(".dlWrap")) openMenu(false); });
+
+/* ---------- revision: file, drop or paste ---------- */
+// Your current formatted script (with any hand edits) becomes the base. A second revision later builds on the first.
+function applyRevision(text, name){
+  if (!/\S/.test(text)) return;
+  state.rev = { base: cleanOutput(), raw: text, name: name || "Pasted revision", segs: [] };
+  state.showChanges = true;
+  $("revTitle").textContent = state.rev.name; $("revClear").hidden = false;
+  render();
+  const n = state.rev.segs.filter(s => s.type !== "same").length;
+  $("revSub").textContent = n ? `${n} ${n === 1 ? "change" : "changes"} brought in` : "No changes";
+  jumpToChange();
+}
+function clearRevision(rerender = true){
+  if (!state.rev && !$("revSrc").value) return;
+  state.rev = null; state.showChanges = false; $("revSrc").value = "";
+  $("revTitle").textContent = "Add the client's revision"; $("revClear").hidden = true;
+  $("revSub").textContent = "Drop it here or click to choose. Only the changes come in.";
+  if (rerender) render();
+}
+// Read a revision file into plain text (same formats as the main drop zone).
+async function revisionText(files){
+  const f = files[0], ext = extOf(f.name);
+  if (ext === "rtf") return parseRTF(await readRTF(f)).text;
+  if (ext === "docx") return docxToText(await readBuf(f));
+  if (ext === "tp3" || ext === "zip") {
+    if (!(await isZip(f))) throw new Error("Couldn't read that .tp3. Drag it from Finder onto the Revision box instead.");
+    const zip = await JSZip.loadAsync(await readBuf(f));
+    const rtf = Object.keys(zip.files).find(p => /\.rtf$/i.test(p) && !/__MACOSX/.test(p));
+    if (!rtf) throw new Error("No script found in that .tp3.");
+    return parseRTF(new TextDecoder("windows-1252").decode(await zip.files[rtf].async("uint8array"))).text;
+  }
+  if (["txt", "md", "text", ""].includes(ext)) return readTextSmart(f);
+  throw new Error(`Can't read .${ext} files. Use .tp3, .rtf, .txt, .md or .docx.`);
+}
+const revDrop = $("revDrop");
+revDrop.addEventListener("click", e => { if (e.target.id !== "revClear") $("revFile").click(); });
+revDrop.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("revFile").click(); } });
+$("revClear").onclick = () => clearRevision();
+$("revFile").onchange = guard(async e => {
+  const files = [...e.target.files]; e.target.value = "";
+  if (files.length) applyRevision(await revisionText(files), files[0].name);
+});
+["dragenter", "dragover"].forEach(t => revDrop.addEventListener(t, e => { e.preventDefault(); e.stopPropagation(); revDrop.classList.add("over"); }));
+revDrop.addEventListener("dragleave", () => revDrop.classList.remove("over"));
+revDrop.addEventListener("drop", guard(async e => {
+  e.preventDefault(); e.stopPropagation(); revDrop.classList.remove("over"); drop.classList.remove("over");
+  const items = [...(e.dataTransfer.items || [])];
+  const entry = items.length === 1 && items[0].webkitGetAsEntry ? items[0].webkitGetAsEntry() : null;
+  if (entry && entry.isDirectory) {                            // a .tp3 dragged from Finder
+    const rtf = (await readDir(entry)).find(x => extOf(x.path) === "rtf");
+    if (!rtf) throw new Error("No script found in that .tp3.");
+    return applyRevision(parseRTF(await readRTF(rtf.file)).text, entry.name);
+  }
+  const files = [...e.dataTransfer.files];
+  if (files.length) applyRevision(await revisionText(files), files[0].name);
+}));
+let revTimer;
+$("revSrc").addEventListener("input", () => {
+  clearTimeout(revTimer);
+  revTimer = setTimeout(() => {
+    const v = $("revSrc").value;
+    if (!/\S/.test(v)) return clearRevision();
+    if (state.rev && state.rev.name === "Pasted revision") { state.rev.raw = v; render(); }   // still typing: same base
+    else applyRevision(v, "Pasted revision");
+  }, 300);
+});
 
 /* ---------- wiring ---------- */
 // iPhone/iPad can't pick folders, so there a .tp3 goes through the normal picker (as a compressed .zip).
