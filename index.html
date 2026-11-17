@@ -3,6 +3,7 @@
   Prompter Prep: changelog
   major.minor.patch: major = overhaul (x.0.0), minor = new feature (2.x.0), patch = fix or polish (2.5.x).
 
+  2.8.2  Company names like "Gap Inc.", "Microsoft Corp.", "Acme Co." no longer end the sentence
   2.8.1  Revision button on the script’s file row (choose a file, paste, or drag onto its right half);
          long links break after / ? & = like the prompter does
   2.8.0  Revisions: drop the client’s new version and only the changes come into your formatted script,
@@ -336,7 +337,7 @@ textarea.out[hidden]{display:none}
       <p class="foot">Removed text is never copied or downloaded.</p>
     </div>
 
-    <div class="version">Version 2.8.1</div>
+    <div class="version">Version 2.8.2</div>
   </aside>
 
   <main class="stage">
@@ -2006,6 +2007,8 @@ function toRTF(text, header, speakers = []){
    ============================================================ */
 const BULLET_RE = /^\s*([•●◦‣·○➢➤►*]|[-–](?!\s*\d)|\(?\d{1,2}[.)]|\(?[a-zA-Z][.)])\s+/;
 const ABBR = new Set(["mr.","mrs.","ms.","dr.","prof.","sr.","jr.","st.","vs.","mt.","e.g.","i.e.","no.","fig.","approx.","dept.","gen.","gov.","sen.","rep.","capt.","lt.","col.","sgt."]);
+// Company suffixes: "Gap Inc. reported" stays one sentence; "…from Gap Inc. We…" still ends one.
+const CORP = new Set(["inc.","corp.","co.","ltd.","llc.","l.l.c.","plc.","bros.","assn.","intl.","int'l.","mfg.","n.a."]);
 const CONJ = new Set(["and","but","or","nor","so","yet","because","while","although","though","which","who","whom","whose","where","when","that","if","unless","until","since","whether","then","as","rather","instead"]);
 const PREP = new Set(["to","with","for","from","in","on","at","by","about","across","between","through","into","onto","including","like","without","after","before","over","under","during","against","toward","towards","among","within","beyond","behind","around","via","of"]);
 const STICKY = new Set(["a","an","the","to","of","and","or","but","nor","in","on","at","for","with","by","from","my","your","our","their","his","her","its","this","these","those","as","into","than","very","more","most","not","no","i","we","you","they","it's","i'm","we're","you're","they're","it"]);
@@ -2025,11 +2028,12 @@ function isSentenceEnd(w, next){
   const starter = STARTERS.has(bare(next));
   if (/(…|\.\.)$/.test(core)) return false;                    // "…" / "..." → new line, not a blank line
   if (/^[a-z]/.test(nextBare)) {                               // "comps. women's..." — still a full stop
-    if (ABBR.has(lw) || lw === "etc.") return false;
+    if (ABBR.has(lw) || CORP.has(lw) || lw === "etc.") return false;
     if (/^([a-z]\.)+$/i.test(lw)) return false;                  // e.g. a.m. U.S. initials
     return true;
   }
   if (ABBR.has(lw)) return false;
+  if (CORP.has(lw)) return starter;                             // "Gap Inc. Chief…" vs "Gap Inc. We…"
   if (/^[A-Z]\.$/.test(core)) return starter;                   // "Molly Q. Ford" vs "Gen Z. We"
   if (/^([A-Za-z]\.){2,}$/.test(lw) && !/^(a\.m\.|p\.m\.)$/.test(lw)) return starter; // "U.S. Army" vs "U.S. We"
   return true;
@@ -2083,7 +2087,7 @@ function breakPenalty(words, k, inside){
 // glue[k] = true means never break between words[k] and words[k+1] (unless the name alone is wider than a line).
 const PARTICLES = new Set(["da","de","del","della","der","den","di","du","la","le","van","von","bin","ibn","al","dos","das","ter","y"]);
 const isCap = w => /^[“"‘'(\[]*\p{Lu}/u.test(w);
-const endsClause = w => /[,;:.!?…—–]["'”’)\]]*$/.test(w) && !/^\p{Lu}\.$/u.test(w.replace(/^[“"‘'(]+/, "")) && !ABBR.has(bare(w) + ".");
+const endsClause = w => /[,;:.!?…—–]["'”’)\]]*$/.test(w) && !/^\p{Lu}\.$/u.test(w.replace(/^[“"‘'(]+/, "")) && !ABBR.has(bare(w) + ".") && !CORP.has(bare(w) + ".");
 function nameGlue(words){
   const glue = new Array(words.length).fill(false);
   for (let k = 0; k < words.length - 1; k++) {
@@ -2380,7 +2384,8 @@ function toUnits(text, opt, report = { removed: [], bullets: [], marks: [] }){
       // A line that doesn't end a sentence continues on the next line (hard-wrapped
       // PDFs, or a script that was already broken into lines). ALL-CAPS headings stay put.
       // After a list item, only a lowercase line is a wrapped continuation of that item.
-      const prevEnds = /[.!?:;]["”’]?$/.test(buf.text);
+      const prevEnds = /[.!?:;]["”’]?$/.test(buf.text) &&
+                       !(CORP.has(bare(buf.text.slice(buf.text.lastIndexOf(" ") + 1)) + ".") && /^[a-z]/.test(line));
       const hardWrap = !prevEnds && !isHeading(buf.text) && !isNumberLine(buf.text) && !isNumberLine(line) &&
                        (buf.type !== "item" || /^[a-z]/.test(line));
       // No space when re-joining a hyphenated word ("mom-" / "core") or a link the prompter broke ("…youtube.com/" / "watch?v=…").
